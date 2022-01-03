@@ -1,0 +1,195 @@
+swagger: "2.0"
+info:
+  description: "Pet api"
+  version: "0.1.0"
+  title: "Pet"
+  contact:
+    email: "antgubarev.dev@gmail.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "pet.antgubarev.dev"
+basePath: "/v1"
+consumes:
+  - application/json
+produces:
+  - application/json
+schemes:
+- "http"
+
+paths:
+    
+  /executions:
+    post:
+      summary: "Start the execution for job."
+      parameters:
+      - name: "body"
+        in: "body"
+        schema:
+          type: "object"
+          properties:
+            job:
+              type: "string"
+              description: "unique job name"
+              example: "job"
+            pid:
+              type: "integer"
+              description: "process pid (default null)"
+              example: "1234"
+            host:
+              type: "string"
+              description: "process host (default null)"
+              example: "node_11"
+            startedAt:
+              type: "string"
+              description: "Ececution start time (RFC3399), default: current time"
+              example: "2019-10-12T07:20:50.52Z"
+            command:
+              type: "string"
+              description: "execution command"
+              example: "systemctl reload"
+      responses:
+        "200":
+          description: "execution created"
+          schema:
+            type: "object"
+            properties:
+              id:
+                type: string
+                description: "Execution id"
+                example: "123e4567-e89b-12d3-a456-426655440000"
+        "400":
+          description: "bad request"
+        "404":
+          description: "job not found"
+
+  /execution/{id}:
+    delete:
+      summary: "Finish the execution"
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "execution id"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "execution finished"
+
+  /job:
+    post:
+      summary: "Create new job"
+      parameters:
+      - name: "body"
+        in: "body"
+        schema:
+          type: "object"
+          properties:
+            name:
+              type: "string"
+              description: "job name"
+              example: "my_job"
+            lockMode:
+              type: "string"
+              description: "default `free`"
+              enum:
+              - "free"
+              - "cluster"
+              - "host"
+              example: "cluster"
+      responses:
+        "201":
+          description: "job created"
+        "400":
+          description: "validation error"
+
+  /job/{name}:
+    delete:
+      summary: "Delete a job"
+      parameters:
+      - name: "name"
+        in: "path"
+        description: "Job unique name"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "job updated"
+        "404":
+          description: "job not found"
+        "423":
+          description: "job has active executions"
+    
+  /jobs:
+    get:
+      summary: "List of all jobs"
+      parameters:
+      - name: "body"
+        in: "body"
+        schema:
+          type: "object"
+          properties:
+            name:
+              type: "string"
+              description: "job name"
+              example: "my_job"
+      responses:
+        "200":
+          description: "list of jobs"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Job"
+
+definitions:
+  Job:
+    type: "object"
+    required:
+      - "id"
+      - "name"
+    properties:
+      name:
+        type: string
+        description: "Job name"
+        example: "My job"
+      lockMode:
+        type: "string"
+        description: "Lock mode"
+        enum:
+        - "free"
+        - "cluster"
+        - "host"
+
+  Execution:
+    type: "object"
+    required:
+      - "id"
+      - "name"
+    properties:
+      id:
+        type: string
+        description: "Execution id"
+        example: "123e4567-e89b-12d3-a456-426655440000"
+      jobName:
+        type: string
+        description: "Job name"
+        example: "My job"
+      startedAt:
+        type: "string"
+        description: "Ececution start time (RFC3399)"
+        example: "2019-10-12T07:20:50.52Z"
+      finishedAt:
+        type: "string"
+        description: "Ececution start finished (RFC3399) or empty string"
+        example: "2019-10-12T07:20:50.52Z"
+      status:
+        type: "string"
+        description: "Execution status"
+        enum:
+        - "Running"
+        - "Successed"
+        - "Failed"
+      result:
+        type: string
+        description: "Status reason"
+        example: "successfull"  
