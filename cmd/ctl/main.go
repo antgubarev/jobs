@@ -24,7 +24,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:        "get",
-				Subcommands: get.GetGetSubcommands(),
+				Subcommands: get.Subcommands(),
 			},
 			{
 				Name:        "create",

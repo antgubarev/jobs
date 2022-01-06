@@ -9,14 +9,14 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func NewServer(addr string, db *bbolt.DB) *http.Server {
+func NewServer(addr string, boltDB *bbolt.DB) *http.Server {
 	router := gin.Default()
 
-	jobStorage, err := boltdb.NewJobStorage(db)
+	jobStorage, err := boltdb.NewJobStorage(boltDB)
 	if err != nil {
 		log.Fatal(err)
 	}
-	executionStorage, err := boltdb.NewExecutionStorage(db)
+	executionStorage, err := boltdb.NewExecutionStorage(boltDB)
 	if err != nil {
 		log.Fatal(err)
 	}

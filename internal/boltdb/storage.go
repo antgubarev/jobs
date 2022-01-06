@@ -1,39 +1,50 @@
 package boltdb
 
 import (
+	"errors"
 	"fmt"
 
 	bolt "go.etcd.io/bbolt"
 )
 
-func NewBoltDb(path string) (*bolt.DB, error) {
-	db, err := bolt.Open(path, 0666, nil)
+var (
+	errExecutionNotFound = errors.New("execution ot found")
+	errBucketNotFound    = errors.New("bucket not found")
+)
+
+const BoltdbFileAccess = 0666
+
+func NewBoltDB(path string) (*bolt.DB, error) {
+	boltDB, err := bolt.Open(path, BoltdbFileAccess, nil)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't connect to boltdb %v", err)
+		return nil, fmt.Errorf("couldn't connect to boltdb %w", err)
 	}
 
-	if err = db.Update(func(tx *bolt.Tx) error {
+	if err = boltDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(JobBucketName))
 		if err != nil {
-			return err
+			return fmt.Errorf("create bucket: %w", err)
 		}
+
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("create bucket %v", err)
+		return nil, fmt.Errorf("create bucket %w", err)
 	}
 
-	return db, nil
+	return boltDB, nil
 }
 
 func CreateBucketIfNotExists(db *bolt.DB, bucketName string) error {
 	if err := db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
-			return err
+			return fmt.Errorf("boltDb Tx: %w", err)
 		}
+
 		return nil
 	}); err != nil {
-		return fmt.Errorf("create bucket %v", err)
+		return fmt.Errorf("CreateBucketIfNotExists: %w", err)
 	}
+
 	return nil
 }

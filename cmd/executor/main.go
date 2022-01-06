@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -13,7 +14,9 @@ import (
 
 const usageText = "job-exec [global options] -- [command] [args]"
 
-func action(c *cli.Context) error {
+var errInvalidArgument = errors.New("invalid argument")
+
+func action(ctx *cli.Context) error {
 	var commandArgs []string
 	for i, arg := range os.Args {
 		if arg == "--" {
@@ -21,18 +24,18 @@ func action(c *cli.Context) error {
 		}
 	}
 	if len(commandArgs) == 0 {
-		return errors.New("command is required. Usage: " + usageText)
+		return fmt.Errorf("%w: `command` is required, usage: %s", errInvalidArgument, usageText)
 	}
 
-	client := restapi.NewClientHttp(c.String("server-url"))
+	client := restapi.NewClientHTTP(ctx.String("server-url"))
 	exectr := executor.NewExecutor(client, executor.WithOutFile(os.Stdout), executor.WithErrFile(os.Stderr))
 
-	code, err := exectr.StartAndWatch(context.Background(), c.String("job-name"), commandArgs)
+	code, err := exectr.StartAndWatch(context.Background(), ctx.String("job-name"), commandArgs)
 	if err != nil {
-		return err
+		return fmt.Errorf("process hasn't started: %w", err)
 	}
-	if code != executor.EXIT_OK {
-		return errors.New("process iscorrupted")
+	if code != executor.ExitOK {
+		return fmt.Errorf("process is corrupted: %w", err)
 	}
 
 	return nil

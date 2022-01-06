@@ -2,7 +2,6 @@ package job_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/antgubarev/pet/internal"
 	"github.com/antgubarev/pet/internal/job"
@@ -10,10 +9,11 @@ import (
 )
 
 func TestLock(t *testing.T) {
-	cases := []struct {
+	t.Parallel()
+	testCases := []struct {
 		name       string
 		jb         job.Job
-		executions []job.Execution
+		executions []func() *job.Execution
 		lockArgs   job.LockArguments
 		err        error
 	}{
@@ -29,7 +29,7 @@ func TestLock(t *testing.T) {
 				Host:      internal.NewPointerOfString("host"),
 				StartedAt: nil,
 			},
-			executions: []job.Execution{},
+			executions: []func() *job.Execution{},
 			err:        nil,
 		},
 		{
@@ -43,16 +43,16 @@ func TestLock(t *testing.T) {
 				Host:      internal.NewPointerOfString("host1"),
 				StartedAt: nil,
 			},
-			executions: []job.Execution{
-				job.Execution{
-					Job:       "job1",
-					Pid:       internal.NewPointerOfInt(1),
-					Host:      internal.NewPointerOfString("host2"),
-					StartedAt: time.Now(),
-					Status:    job.StatusRunning,
+			executions: []func() *job.Execution{
+				func() *job.Execution {
+					exec := job.NewRunningExecution("job1")
+					exec.SetPid(1)
+					exec.SetHost("host2")
+
+					return exec
 				},
 			},
-			err: new(job.Locked),
+			err: new(job.LockedError),
 		},
 		{
 			name: "Once at host mode and exec at another host",
@@ -65,13 +65,13 @@ func TestLock(t *testing.T) {
 				Host:      internal.NewPointerOfString("host1"),
 				StartedAt: nil,
 			},
-			executions: []job.Execution{
-				job.Execution{
-					Job:       "job1",
-					Pid:       internal.NewPointerOfInt(2),
-					Host:      internal.NewPointerOfString("host2"),
-					StartedAt: time.Now(),
-					Status:    job.StatusRunning,
+			executions: []func() *job.Execution{
+				func() *job.Execution {
+					exec := job.NewRunningExecution("job1")
+					exec.SetPid(2)
+					exec.SetHost("host2")
+
+					return exec
 				},
 			},
 			err: nil,
@@ -87,27 +87,33 @@ func TestLock(t *testing.T) {
 				Host:      internal.NewPointerOfString("host1"),
 				StartedAt: nil,
 			},
-			executions: []job.Execution{
-				job.Execution{
-					Job:       "job1",
-					Pid:       internal.NewPointerOfInt(2),
-					Host:      internal.NewPointerOfString("host1"),
-					StartedAt: time.Now(),
-					Status:    job.StatusRunning,
+			executions: []func() *job.Execution{
+				func() *job.Execution {
+					exec := job.NewRunningExecution("job1")
+					exec.SetPid(2)
+					exec.SetHost("host1")
+
+					return exec
 				},
 			},
-			err: new(job.Locked),
+			err: new(job.LockedError),
 		},
 	}
 
-	for _, cs := range cases {
-		t.Run(cs.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			locker := job.NewLocker()
-			_, err := locker.Lock(&cs.jb, cs.lockArgs, cs.executions)
-			if cs.err == nil {
+			var executions []job.Execution
+			for _, execFunc := range testCase.executions {
+				executions = append(executions, *execFunc())
+			}
+			_, err := locker.Lock(&testCase.jb, testCase.lockArgs, executions)
+			if testCase.err == nil {
 				assert.NoError(t, err)
 			} else {
-				assert.ErrorIs(t, err, new(job.Locked))
+				assert.ErrorIs(t, err, new(job.LockedError))
 			}
 		})
 	}

@@ -8,79 +8,88 @@ import (
 	"github.com/google/uuid"
 )
 
-type executionHandler struct {
-	jobStorage       job.JobStorage
+type ExecutionHandler struct {
+	jobStorage       job.Storage
 	executionStorage job.ExecutionStorage
 	controller       job.ControllerI
 }
 
-func NewExecutionHandler(jobStorage job.JobStorage, executionStorage job.ExecutionStorage) *executionHandler {
-	return &executionHandler{
+func NewExecutionHandler(jobStorage job.Storage, executionStorage job.ExecutionStorage) *ExecutionHandler {
+	return &ExecutionHandler{
 		jobStorage:       jobStorage,
 		executionStorage: executionStorage,
 		controller:       job.NewController(executionStorage),
 	}
 }
 
-func (eh *executionHandler) SetController(controller job.ControllerI) {
+func (eh *ExecutionHandler) SetController(controller job.ControllerI) {
 	eh.controller = controller
 }
 
-func (eh *executionHandler) StartHandle(c *gin.Context) {
+func (eh *ExecutionHandler) StartHandle(ctx *gin.Context) {
 	var jobStartIn JobStartIn
-	if err := c.ShouldBindJSON(&jobStartIn); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBindJSON(&jobStartIn); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
 		return
 	}
 
-	jb, found := eh.findJobByName(c, jobStartIn.Job)
+	testJob, found := eh.findJobByName(ctx, jobStartIn.Job)
 	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"err": "job not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"err": "job not found"})
+
 		return
 	}
 
-	execution, err := eh.controller.Start(jb, job.StartArguments{
+	execution, err := eh.controller.Start(testJob, job.StartArguments{
 		Command:   jobStartIn.Command,
 		Pid:       jobStartIn.Pid,
 		Host:      jobStartIn.Host,
 		StartedAt: jobStartIn.StartedAt,
 	})
 	if err != nil {
-		if _, ok := err.(*job.Locked); ok {
-			c.JSON(http.StatusLocked, nil)
+		if _, ok := err.(*job.LockedError); ok {
+			ctx.JSON(http.StatusLocked, nil)
+
 			return
 		}
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"id": execution.Id.String()})
+	ctx.JSON(http.StatusOK, gin.H{"id": execution.ID.String()})
 }
 
-func (eh *executionHandler) FinishHandle(c *gin.Context) {
-	uid, err := uuid.Parse(c.Param("id"))
+func (eh *ExecutionHandler) FinishHandle(ctx *gin.Context) {
+	uid, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"err": "invalid id"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"err": "invalid id"})
+
 		return
 	}
 
 	if err := eh.controller.Finish(uid); err != nil {
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, nil)
+	ctx.JSON(http.StatusOK, nil)
 }
 
-func (eh *executionHandler) findJobByName(c *gin.Context, name string) (*job.Job, bool) {
+func (eh *ExecutionHandler) findJobByName(ctx *gin.Context, name string) (*job.Job, bool) {
 	job, err := eh.jobStorage.GetByName(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return nil, false
 	}
 	if job == nil {
-		c.JSON(http.StatusNotFound, nil)
+		ctx.JSON(http.StatusNotFound, nil)
+
 		return nil, false
 	}
+
 	return job, true
 }

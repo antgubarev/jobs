@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate mockery --case underscore --inpackage --name ControllerI
+//go:generate mockery --case underscore --name ControllerI
 type ControllerI interface {
 	Start(j *Job, args StartArguments) (*Execution, error)
 	Finish(id uuid.UUID) error
@@ -32,18 +32,18 @@ type StartArguments struct {
 	StartedAt *time.Time
 }
 
-func (e *Controller) Start(j *Job, args StartArguments) (*Execution, error) {
-	executions, err := e.executionStorage.GetByJobName(j.Name)
+func (e *Controller) Start(lJob *Job, args StartArguments) (*Execution, error) {
+	executions, err := e.executionStorage.GetByJobName(lJob.Name)
 	if err != nil {
-		return nil, fmt.Errorf("controller start: %v", err)
+		return nil, fmt.Errorf("controller start: %w", err)
 	}
-	id, err := e.locker.Lock(j, LockArguments{
+	executionID, err := e.locker.Lock(lJob, LockArguments{
 		Pid:       args.Pid,
 		Host:      args.Host,
 		StartedAt: args.StartedAt,
 	}, executions)
 	if err != nil {
-		return nil, fmt.Errorf("controller start: %v", err)
+		return nil, fmt.Errorf("controller start: %w", err)
 	}
 
 	if args.StartedAt == nil {
@@ -51,30 +51,33 @@ func (e *Controller) Start(j *Job, args StartArguments) (*Execution, error) {
 		args.StartedAt = &t
 	}
 
-	exec := &Execution{
-		Job:        j.Name,
-		Command:    args.Command,
-		Pid:        args.Pid,
-		Host:       args.Host,
-		StartedAt:  *args.StartedAt,
-		FinishedAt: nil,
-		Status:     StatusRunning,
-		Msg:        nil,
+	exec := *NewRunningExecution(lJob.Name)
+	if args.Command != nil {
+		exec.SetCommand(*args.Command)
 	}
-	exec.Id = id
-	if err := e.executionStorage.Store(exec); err != nil {
-		return nil, fmt.Errorf("controller start: %v", err)
+	if args.Pid != nil {
+		exec.SetPid(*args.Pid)
 	}
-	return exec, nil
+	if args.Host != nil {
+		exec.SetHost(*args.Host)
+	}
+	exec.SetStartedAt(*args.StartedAt)
+	exec.SetID(executionID)
+	if err := e.executionStorage.Store(&exec); err != nil {
+		return nil, fmt.Errorf("controller start: %w", err)
+	}
+
+	return &exec, nil
 }
 
 func (e *Controller) Finish(id uuid.UUID) error {
-	execution, err := e.executionStorage.GetById(id)
+	execution, err := e.executionStorage.GetByID(id)
 	if err != nil {
-		return fmt.Errorf("finish: %v", err)
+		return fmt.Errorf("finish: %w", err)
 	}
 	if err := e.executionStorage.Delete(&execution); err != nil {
-		return fmt.Errorf("finish: %v", err)
+		return fmt.Errorf("finish: %w", err)
 	}
+
 	return nil
 }

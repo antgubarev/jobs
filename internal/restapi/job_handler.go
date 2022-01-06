@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -9,75 +10,87 @@ import (
 	"github.com/golang/glog"
 )
 
-type jobHandler struct {
-	jobStorage job.JobStorage
+var errUndefinedLockMode = errors.New("undefined lock mode")
+
+type JobHandler struct {
+	jobStorage job.Storage
 }
 
-func NewJobHandler(jobStorage job.JobStorage) *jobHandler {
-	return &jobHandler{jobStorage: jobStorage}
+func NewJobHandler(jobStorage job.Storage) *JobHandler {
+	return &JobHandler{jobStorage: jobStorage}
 }
 
-func (jh *jobHandler) CreateHandle(c *gin.Context) {
+func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
 	var createJobIn CreateJobIn
-	if err := c.ShouldBindJSON(&createJobIn); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+	if err := ctx.ShouldBindJSON(&createJobIn); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+
 		return
 	}
 
 	existJob, err := jh.jobStorage.GetByName(createJobIn.Name)
 	if err != nil {
 		glog.Errorf("find job by name: %v", err)
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 	if existJob != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("%s already exists", createJobIn.Name)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"err": fmt.Sprintf("%s already exists", createJobIn.Name)})
+
 		return
 	}
 
-	jb := job.NewJob(createJobIn.Name)
-	lm, err := parseLockMode(createJobIn.LockMode)
+	testJob := job.NewJob(createJobIn.Name)
+	parsedLockMode, err := parseLockMode(createJobIn.LockMode)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"err": err.Error()})
+
 		return
 	}
-	jb.LockMode = lm
-	if err := jh.jobStorage.Store(jb); err != nil {
+	testJob.LockMode = parsedLockMode
+	if err := jh.jobStorage.Store(testJob); err != nil {
 		glog.Errorf("create handle 500: %v", err)
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, nil)
+	ctx.JSON(http.StatusCreated, nil)
 }
 
-func (jh *jobHandler) DeleteHandle(c *gin.Context) {
+func (jh *JobHandler) DeleteHandle(ctx *gin.Context) {
 	// TODO delete executions
-	_, ok := jh.findJobByName(c, c.Param("name"))
+	_, ok := jh.findJobByName(ctx, ctx.Param("name"))
 	if !ok {
-		c.JSON(http.StatusNotFound, nil)
+		ctx.JSON(http.StatusNotFound, nil)
+
 		return
 	}
 
-	if err := jh.jobStorage.DeleteByName(c.Param("name")); err != nil {
-		c.JSON(http.StatusOK, nil)
+	if err := jh.jobStorage.DeleteByName(ctx.Param("name")); err != nil {
+		ctx.JSON(http.StatusOK, nil)
+
 		return
 	}
 
-	c.JSON(200, nil)
+	ctx.JSON(http.StatusOK, nil)
 }
 
-func (jh *jobHandler) findJobByName(c *gin.Context, name string) (*job.Job, bool) {
+func (jh *JobHandler) findJobByName(ctx *gin.Context, name string) (*job.Job, bool) {
 	job, err := jh.jobStorage.GetByName(name)
 	if err != nil {
 		glog.Errorf("find job by name: %v", err)
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return nil, false
 	}
 	if job == nil {
-		c.JSON(http.StatusNotFound, nil)
+		ctx.JSON(http.StatusNotFound, nil)
+
 		return nil, false
 	}
+
 	return job, true
 }
 
@@ -90,6 +103,6 @@ func parseLockMode(lockMode string) (job.LockMode, error) {
 	case string(job.HostLockMode):
 		return job.HostLockMode, nil
 	default:
-		return "", fmt.Errorf("undefined lock mode")
+		return "", fmt.Errorf("parseLockMode: %w: %s", errUndefinedLockMode, lockMode)
 	}
 }

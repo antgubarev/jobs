@@ -1,19 +1,19 @@
 package job
 
-type Locked struct{}
+type LockedError struct{}
 
-func (lckd *Locked) Error() string {
+func (lckd *LockedError) Error() string {
 	return "job is locked"
 }
 
-type InvalidUnlockArguments struct {
+type InvalidUnlockArgumentsError struct {
 	msg string
 }
 
 func NewInvalidUnlockArgumentsErr(msg string) error {
-	return &InvalidUnlockArguments{msg: msg}
+	return &InvalidUnlockArgumentsError{msg: msg}
 }
 
-func (ivua *InvalidUnlockArguments) Error() string {
+func (ivua *InvalidUnlockArgumentsError) Error() string {
 	return ivua.msg
 }

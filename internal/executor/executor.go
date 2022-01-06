@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	EXIT_ERROR = 1
-	EXIT_OK    = 0
+	ExitError = 1
+	ExitOK    = 0
 )
+
+var errInvalidArguments = errors.New("invalid arguments")
 
 type options struct {
 	outFile *os.File
@@ -62,11 +64,11 @@ func NewExecutor(client restapi.Client, opts ...Option) *Executor {
 
 func (e *Executor) StartAndWatch(ctx context.Context, job string, args []string) (exitCode int, err error) {
 	if len(args) == 0 {
-		return EXIT_ERROR, errors.New("command name is required")
+		return ExitError, fmt.Errorf("StartAndWatch: %w: command name is required", errInvalidArguments)
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
-		return EXIT_ERROR, fmt.Errorf("executor start: %v", err)
+		return ExitError, fmt.Errorf("StartAndWatch: %w", err)
 	}
 
 	startIn := &restapi.JobStartIn{
@@ -77,59 +79,64 @@ func (e *Executor) StartAndWatch(ctx context.Context, job string, args []string)
 		Host:      &hostname,
 	}
 
-	_, err = e.client.JobStart(startIn)
+	_, err = e.client.JobStart(ctx, startIn)
 	if err != nil {
-		return EXIT_ERROR, fmt.Errorf("send job start to api: %v", err)
+		return ExitError, fmt.Errorf("send job start to api: %w", err)
 	}
 
 	var cmd *exec.Cmd
 	if len(args) == 1 {
-		cmd = exec.Command(args[0])
+		cmd = exec.Command(args[0]) //nolint:gosec
 	} else {
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd = exec.Command(args[0], args[1:]...) //nolint:gosec
 	}
 
 	cmd.Stdout = e.outFile
 	cmd.Stderr = e.errFile
 
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	errs := make(chan error)
-
 	if err := cmd.Start(); err != nil {
-		return EXIT_ERROR, fmt.Errorf("error start command: %v", err)
+		return ExitError, fmt.Errorf("error start command: %w", err)
 	}
 	if e.cmdChan != nil {
 		e.cmdChan <- cmd
 	}
 
-	wg := sync.WaitGroup{}
+	return e.watch(ctx, cmd)
+}
 
-	wg.Add(1)
+func (e *Executor) watch(ctx context.Context, cmd *exec.Cmd) (exitCode int, err error) {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	errs := make(chan error)
+
+	wgCmd := sync.WaitGroup{}
+
+	wgCmd.Add(1)
 	go func() {
-		defer wg.Done()
+		defer wgCmd.Done()
 
 		select {
 		case <-ctx.Done():
-			// TODO: parent process finish
+			// TODO: parent process was finished
 			return
 		case <-done:
-			// TODO: user finishs process
+			// TODO: user finished process
 			return
 		case sig := <-sigs:
 			if err := cmd.Process.Signal(sig); err != nil {
-				errs <- fmt.Errorf("error sending signal to process: %v", err)
+				errs <- fmt.Errorf("error sending signal to process: %w", err)
+
 				return
 			}
 		}
 	}()
 
 	if err := cmd.Wait(); err != nil {
-		return EXIT_ERROR, fmt.Errorf("error running command: %v", err)
+		return ExitError, fmt.Errorf("error running command: %w", err)
 	}
 	done <- true
 
-	wg.Wait()
+	wgCmd.Wait()
 
-	return EXIT_OK, nil
+	return ExitOK, nil
 }

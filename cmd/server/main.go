@@ -15,20 +15,22 @@ import (
 	"github.com/antgubarev/pet/internal/restapi"
 )
 
+const TIMEOUT = 5
+
 func main() {
 	flags := parseFlags()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	db, err := boltdb.NewBoltDb(flags.dbPath)
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT*time.Second)
+	boltDB, err := boltdb.NewBoltDB(flags.dbPath)
 	if err != nil {
 		panic(err)
 	}
 	defer func() {
-		db.Close()
+		boltDB.Close()
 		cancel()
 	}()
 
-	srv := restapi.NewServer(flags.listen, db)
+	srv := restapi.NewServer(flags.listen, boltDB)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
@@ -37,16 +39,18 @@ func main() {
 	}()
 	log.Printf("Start listening in %s \n", flags.listen)
 
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		log.Printf("Server forced to shutdown: %s \n", err.Error())
+
+		return
 	}
 
-	log.Println("Server exiting")
+	log.Println("Server has exited")
 }
 
 type runFlags struct {

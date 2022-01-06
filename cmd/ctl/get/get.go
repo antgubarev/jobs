@@ -1,6 +1,7 @@
 package get
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func GetGetSubcommands() []*cli.Command {
+func Subcommands() []*cli.Command {
 	return []*cli.Command{
 		{
 			Name:    "jobs",
@@ -19,11 +20,11 @@ func GetGetSubcommands() []*cli.Command {
 	}
 }
 
-func jobsListAction(c *cli.Context) error {
-	client := restapi.NewClientHttp(c.String("server-url"))
-	jobs, err := client.JobsList()
+func jobsListAction(ctx *cli.Context) error {
+	client := restapi.NewClientHTTP(ctx.String("server-url"))
+	jobs, err := client.JobsList(context.Background())
 	if err != nil {
-		return fmt.Errorf("job list action: %v", err)
+		return fmt.Errorf("job list action: %w", err)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetBorder(false)

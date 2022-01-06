@@ -2,22 +2,25 @@ package job_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/antgubarev/pet/internal"
 	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+const TestJobName string = "job"
+
 func TestStart(t *testing.T) {
-	executionStorage := new(job.MockExecutionStorage)
+	t.Parallel()
+	executionStorage := new(mocks.ExecutionStorage)
 	executionStorage.On("GetByJobName", mock.MatchedBy(func(name string) bool {
-		return name == "job"
+		return name == TestJobName
 	})).Return([]job.Execution{}, nil)
 	executionStorage.On("Store", mock.MatchedBy(func(execution *job.Execution) bool {
-		return execution.Job == "job" &&
+		return execution.Job == TestJobName &&
 			*execution.Command == "command" &&
 			*execution.Host == "host" &&
 			*execution.Pid == 1
@@ -40,19 +43,20 @@ func TestStart(t *testing.T) {
 }
 
 func TestFinish(t *testing.T) {
-	executionStorage := new(job.MockExecutionStorage)
-	id := uuid.New()
-	executionStorage.On("GetById", id).Return(job.Execution{
-		Id:        id,
-		Job:       "job",
-		StartedAt: time.Now(),
-		Status:    job.StatusRunning,
+	t.Parallel()
+	executionStorage := new(mocks.ExecutionStorage)
+	executionID := uuid.New()
+	executionStorage.On("GetById", executionID).Return(func() *job.Execution {
+		exec := job.NewRunningExecution(TestJobName)
+		exec.SetID(executionID)
+
+		return exec
 	}, nil)
 	executionStorage.On("Delete", mock.MatchedBy(func(execution *job.Execution) bool {
-		return execution.Job == "job" &&
-			execution.Id == id
+		return execution.Job == TestJobName &&
+			execution.ID == executionID
 	})).Return(nil)
 	controller := job.NewController(executionStorage)
-	err := controller.Finish(id)
+	err := controller.Finish(executionID)
 	assert.NoError(t, err)
 }

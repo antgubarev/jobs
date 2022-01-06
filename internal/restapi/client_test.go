@@ -1,6 +1,7 @@
 package restapi_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,34 +14,37 @@ import (
 )
 
 func TestCreateJob(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		decoder := json.NewDecoder(r.Body)
+	t.Parallel()
+	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		decoder := json.NewDecoder(request.Body)
 		var in restapi.CreateJobIn
 		err := decoder.Decode(&in)
 		if err != nil {
 			t.Error(err)
+
 			return
 		}
 		assert.Equal(t, "job", in.Name)
 		assert.Equal(t, "cluster", in.LockMode)
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_ = httpClient.JobCreate(&restapi.CreateJobIn{
+	httpClient := restapi.NewClientHTTP(testServer.URL)
+	_ = httpClient.JobCreate(context.Background(), &restapi.CreateJobIn{
 		Name:     "job",
 		LockMode: "cluster",
 	})
 }
 
 func TestCreateJobInternalError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobCreate(&restapi.CreateJobIn{
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobCreate(context.Background(), &restapi.CreateJobIn{
 		Name:     "job",
 		LockMode: "cluster",
 	})
@@ -49,14 +53,17 @@ func TestCreateJobInternalError(t *testing.T) {
 }
 
 func TestCreateJobBadRequest(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"err":"invalig argument"}`))
+	t.Parallel()
+	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusBadRequest)
+		if _, err := writer.Write([]byte(`{"err":"invalig argument"}`)); err != nil {
+			t.Fatal(err)
+		}
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobCreate(&restapi.CreateJobIn{
+	httpClient := restapi.NewClientHTTP(testServer.URL)
+	err := httpClient.JobCreate(context.Background(), &restapi.CreateJobIn{
 		Name:     "job",
 		LockMode: "cluster",
 	})
@@ -65,54 +72,59 @@ func TestCreateJobBadRequest(t *testing.T) {
 }
 
 func TestDeleteJob(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobDelete("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobDelete(context.Background(), "job")
 	assert.NoError(t, err)
 }
 
 func TestDeleteJobNotFound(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusNotFound)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobDelete("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobDelete(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "job not found", err.Error())
 }
 
 func TestDeleteJobInternalServerError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobDelete("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobDelete(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "internal server error", err.Error())
 }
 
 func TestDeleteJobUndefinedStatus(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusAccepted)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobDelete("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobDelete(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "job delete request: undefined status code 202", err.Error())
 }
 
 func TestGetAllJobs(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Parallel()
+	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		jobs := struct {
 			Jobs []job.Job `json:"jobs"`
 		}{
@@ -131,13 +143,15 @@ func TestGetAllJobs(t *testing.T) {
 		if err != nil {
 			t.Errorf("marshal jobs: %v", err)
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
+		writer.WriteHeader(http.StatusOK)
+		if _, err := writer.Write(data); err != nil {
+			t.Fatal(err)
+		}
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	jobs, err := httpClient.JobsList()
+	httpClient := restapi.NewClientHTTP(testServer.URL)
+	jobs, err := httpClient.JobsList(context.Background())
 	if err != nil {
 		t.Errorf("jobs list: %v", err)
 	}
@@ -155,141 +169,156 @@ func TestGetAllJobs(t *testing.T) {
 }
 
 func TestGetAllJobsUndefinedStatus(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusAccepted)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.JobsList()
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.JobsList(context.Background())
 	assert.Error(t, err)
 	assert.Equal(t, "all job request: undefined status code 202", err.Error())
 }
 
 func TestJobByName(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Parallel()
+	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		jb := &job.Job{
 			Name:     "job",
 			LockMode: job.ClusterLockMode,
 		}
-		w.WriteHeader(http.StatusOK)
+		writer.WriteHeader(http.StatusOK)
 		jbData, err := json.Marshal(jb)
 		if err != nil {
 			t.Errorf("marshal job %v", err)
 		}
-		w.Write(jbData)
+		if _, err := writer.Write(jbData); err != nil {
+			t.Error(err)
+		}
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	jb, err := httpClient.GetJobByName("job")
+	httpClient := restapi.NewClientHTTP(testServer.URL)
+	testJob, err := httpClient.GetJobByName(context.Background(), "job")
 	if err != nil {
 		t.Errorf("jobbyname %v", err)
 	}
 
-	assert.Equal(t, "job", jb.Name)
-	assert.Equal(t, job.ClusterLockMode, jb.LockMode)
+	assert.Equal(t, "job", testJob.Name)
+	assert.Equal(t, job.ClusterLockMode, testJob.LockMode)
 }
 
 func TestJobByNameNotFound(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.GetJobByName("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.GetJobByName(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "send `job by name`, job job not found", err.Error())
 }
 
 func TestJobInternalServerError(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.GetJobByName("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.GetJobByName(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "send `job by name` internal server error", err.Error())
 }
 
 func TestJobByNameUndefinedStatus(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.GetJobByName("job")
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.GetJobByName(context.Background(), "job")
 	assert.Error(t, err)
 	assert.Equal(t, "`job by name` request: undefined status code 202", err.Error())
 }
 
 func TestJobStart(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.JobStart(&restapi.JobStartIn{Job: "job"})
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.JobStart(context.Background(), &restapi.JobStartIn{Job: "job"})
 	assert.NoError(t, err, "job start %v", err)
 }
 
 func TestJobStartBadRequest(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Parallel()
+	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body := struct {
-			Err string `json:"Err"`
+			Err string `json:"err"`
 		}{
 			Err: "invalid arguments",
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		writer.WriteHeader(http.StatusBadRequest)
 		bodyData, err := json.Marshal(body)
 		if err != nil {
 			t.Errorf("marshal request data %v", err)
 		}
-		w.Write(bodyData)
+		if _, err := writer.Write(bodyData); err != nil {
+			t.Fatal(err)
+		}
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.JobStart(&restapi.JobStartIn{Job: "job"})
+	httpClient := restapi.NewClientHTTP(testServer.URL)
+	_, err := httpClient.JobStart(context.Background(), &restapi.JobStartIn{Job: "job"})
 	assert.Equal(t, "send `job by name`, bad request invalid arguments", err.Error())
 }
 
-func TestJobStartNotFound(t *testing.T) {
+func jobStartWithResponseCode(t *testing.T, responseCode int) error {
+	t.Helper()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(responseCode)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.JobStart(&restapi.JobStartIn{Job: "job"})
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	_, err := httpClient.JobStart(context.Background(), &restapi.JobStartIn{Job: "job"})
+
+	return err
+}
+
+func TestJobStartNotFound(t *testing.T) {
+	t.Parallel()
+	err := jobStartWithResponseCode(t, http.StatusNotFound)
 	assert.Error(t, err)
 	assert.Equal(t, "send `job by name`, job job not found", err.Error())
 }
 
 func TestJobStartLocked(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusLocked)
-	}))
-	defer ts.Close()
-
-	httpClient := restapi.NewClientHttp(ts.URL)
-	_, err := httpClient.JobStart(&restapi.JobStartIn{Job: "job"})
+	t.Parallel()
+	err := jobStartWithResponseCode(t, http.StatusLocked)
 	assert.Error(t, err)
 	assert.Equal(t, "send `job by name`, job job locked", err.Error())
 }
 
 func TestJobFinish(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
-	httpClient := restapi.NewClientHttp(ts.URL)
-	err := httpClient.JobFinish(uuid.New())
+	httpClient := restapi.NewClientHTTP(ts.URL)
+	err := httpClient.JobFinish(context.Background(), uuid.New())
 	assert.NoError(t, err, "job start %v", err)
 }

@@ -8,28 +8,32 @@ import (
 	"testing"
 
 	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/antgubarev/pet/internal/restapi"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+const TestJobName = "job"
+
 func TestJobCreate(t *testing.T) {
-	mockJobStorage := &job.MockJobStorage{}
+	t.Parallel()
+	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("Store",
 		mock.MatchedBy(
 			func(jobModel *job.Job) bool {
-				return jobModel.Name == "name" &&
+				return jobModel.Name == TestJobName &&
 					jobModel.LockMode == job.HostLockMode
 			})).
 		Return(nil).Once()
 	mockJobStorage.On("GetByName", "name").Return(nil, nil)
 
-	r := gin.Default()
+	testRouter := gin.Default()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
-	r.POST("/job", jobHandler.CreateHandle)
+	testRouter.POST("/job", jobHandler.CreateHandle)
 
-	w := httptest.NewRecorder()
+	testWriter := httptest.NewRecorder()
 	inRequest := &restapi.CreateJobIn{}
 	var data []byte
 	_ = json.Unmarshal(data, inRequest)
@@ -38,54 +42,56 @@ func TestJobCreate(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/job", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	testRouter.ServeHTTP(testWriter, req)
 
-	assert.Equal(t, 201, w.Code, "%s", w.Body.Bytes())
+	assert.Equal(t, 201, testWriter.Code, "%s", testWriter.Body.Bytes())
 	mockJobStorage.AssertExpectations(t)
 }
 
 func TestJobCreateExists(t *testing.T) {
-	mockJobStorage := &job.MockJobStorage{}
+	t.Parallel()
+	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("GetByName", "job").Return(&job.Job{}, nil)
 
-	r := gin.Default()
+	testRouter := gin.Default()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
-	r.POST("/job", jobHandler.CreateHandle)
+	testRouter.POST("/job", jobHandler.CreateHandle)
 
-	w := httptest.NewRecorder()
+	testWriter := httptest.NewRecorder()
 
 	body := `{"name":"job","lockMode":"host"}`
 	req, _ := http.NewRequest("POST", "/job", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	testRouter.ServeHTTP(testWriter, req)
 
-	assert.Equal(t, 400, w.Code, "%s", w.Body.Bytes())
+	assert.Equal(t, 400, testWriter.Code, "%s", testWriter.Body.Bytes())
 	mockJobStorage.AssertExpectations(t)
 }
 
 func TestJobDelete(t *testing.T) {
-	mockJobStorage := &job.MockJobStorage{}
+	t.Parallel()
+	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("GetByName",
 		mock.MatchedBy(func(name string) bool {
-			return name == "name"
+			return name == TestJobName
 		})).
 		Return(&job.Job{
-			Name: "name",
+			Name: TestJobName,
 		}, nil).Once()
 
 	mockJobStorage.On("DeleteByName", mock.MatchedBy(func(name string) bool {
-		return name == "name"
+		return name == TestJobName
 	})).Return(nil).Once()
 
-	r := gin.Default()
+	testRouter := gin.Default()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
-	r.DELETE("/job/:name", jobHandler.DeleteHandle)
+	testRouter.DELETE("/job/:name", jobHandler.DeleteHandle)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("DELETE", "/job/name", nil)
 
-	r.ServeHTTP(w, req)
+	testRouter.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code, "%s", w.Body.Bytes())
 	mockJobStorage.AssertExpectations(t)

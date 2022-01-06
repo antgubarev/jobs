@@ -7,33 +7,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type jobsHandler struct {
-	store job.JobStorage
+type JobsHandler struct {
+	store job.Storage
 }
 
-func NewJobsHandler(store job.JobStorage) *jobsHandler {
-	return &jobsHandler{store: store}
+func NewJobsHandler(store job.Storage) *JobsHandler {
+	return &JobsHandler{store: store}
 }
 
-func (jsh *jobsHandler) ListHandle(c *gin.Context) {
+func (jsh *JobsHandler) ListHandle(ctx *gin.Context) {
 	jobs, err := jsh.store.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 
-	c.JSON(200, gin.H{"jobs": jobs})
+	ctx.JSON(http.StatusOK, gin.H{"jobs": jobs})
 }
 
-func (jsh *jobsHandler) ListByNameHandle(c *gin.Context) {
+func (jsh *JobsHandler) ListByNameHandle(ctx *gin.Context) {
 	// @todo need return one job
-	name := c.Param("name")
+	name := ctx.Param("name")
 
 	job, err := jsh.store.GetByName(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, nil)
+		ctx.JSON(http.StatusInternalServerError, nil)
+
 		return
 	}
 
-	c.JSON(200, gin.H{"job": job})
+	ctx.JSON(http.StatusOK, gin.H{"job": job})
 }

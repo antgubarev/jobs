@@ -2,6 +2,7 @@ package restapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,48 +21,55 @@ type CreateJobIn struct {
 
 type JobStartIn struct {
 	Job       string     `json:"job"`
-	StartedAt *time.Time `json:"started_at" time_format:"2006-01-02T15:04:05Z07:00"`
+	StartedAt *time.Time `json:"startedAt" time_format:"2006-01-02T15:04:05Z07:00"`
 	Command   *string    `json:"command"`
 	Pid       *int       `json:"pid"`
 	Host      *string    `json:"host"`
 }
 
-//go:generate mockery --case underscore --inpackage --name Client
+var (
+	errWrongResponse       = errors.New("wrong response")
+	errJobNotFound         = errors.New("job not found")
+	errInternalServerError = errors.New("internal server error")
+	errLocked              = errors.New("locked")
+)
+
+//go:generate mockery --case underscore --name Client
 type Client interface {
-	JobCreate(in *CreateJobIn) error
-	JobDelete(name string) error
-	JobsList() ([]job.Job, error)
-	GetJobByName(name string) (*job.Job, error)
-	JobStart(in *JobStartIn) (uuid.UUID, error)
-	JobFinish(id uuid.UUID) error
+	JobCreate(ctx context.Context, in *CreateJobIn) error
+	JobDelete(ctx context.Context, name string) error
+	JobsList(ctx context.Context) ([]job.Job, error)
+	GetJobByName(ctx context.Context, name string) (*job.Job, error)
+	JobStart(ctx context.Context, in *JobStartIn) (uuid.UUID, error)
+	JobFinish(ctx context.Context, id uuid.UUID) error
 }
 
-type ClientHttp struct {
-	baseUrl string
+type ClientHTTP struct {
+	baseURL string
 	client  http.Client
 }
 
-func NewClientHttp(baseUrl string) Client {
-	return &ClientHttp{
-		baseUrl: baseUrl,
+func NewClientHTTP(baseURL string) *ClientHTTP {
+	return &ClientHTTP{
+		baseURL: baseURL,
 		client:  http.Client{},
 	}
 }
 
-func (c *ClientHttp) JobCreate(in *CreateJobIn) error {
+func (c *ClientHTTP) JobCreate(ctx context.Context, in *CreateJobIn) error {
 	jsonStr, err := json.Marshal(in)
 	if err != nil {
-		return err
+		return fmt.Errorf("JobCreate marshal in: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.baseUrl+"/job", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/job", bytes.NewBuffer(jsonStr))
 	if err != nil {
-		return fmt.Errorf("create job create request %v", err)
+		return fmt.Errorf("JobCreate create request %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send job create request %v", err)
+		return fmt.Errorf("JobCreate send request: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -75,21 +83,22 @@ func (c *ClientHttp) JobCreate(in *CreateJobIn) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("send `job create`, bad request %s", msg)
+
+		return fmt.Errorf("JobCreate %w: %s", errWrongResponse, msg)
 	}
 
-	return errors.New("internal server error")
+	return fmt.Errorf("internal server error: %w", err)
 }
 
-func (c *ClientHttp) JobDelete(name string) error {
-	req, err := http.NewRequest("DELETE", c.baseUrl+"/job/"+name, nil)
+func (c *ClientHTTP) JobDelete(ctx context.Context, name string) error {
+	req, err := http.NewRequestWithContext(ctx, "DELETE", c.baseURL+"/job/"+name, nil)
 	if err != nil {
-		return fmt.Errorf("create job delete request %v", err)
+		return fmt.Errorf("create job delete request %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send job delete request %v", err)
+		return fmt.Errorf("send job delete request %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -98,26 +107,27 @@ func (c *ClientHttp) JobDelete(name string) error {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return errors.New("job not found")
+		return fmt.Errorf("JobDelete: %w", errJobNotFound)
 	}
 
 	if resp.StatusCode == http.StatusInternalServerError {
-		return errors.New("internal server error")
+		return fmt.Errorf("JobDelete: %w", errInternalServerError)
 	}
 
-	return fmt.Errorf("job delete request: undefined status code %d", resp.StatusCode)
+	return fmt.Errorf("JobDelete status %d: %w", resp.StatusCode, errWrongResponse)
 }
 
-func (c *ClientHttp) JobsList() ([]job.Job, error) {
-	req, err := http.NewRequest("GET", c.baseUrl+"/jobs", nil)
+func (c *ClientHTTP) JobsList(ctx context.Context) ([]job.Job, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/jobs", nil)
 	if err != nil {
-		return nil, fmt.Errorf("create all jobs request: %v", err)
+		return nil, fmt.Errorf("JobList create request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("send all jobs request: %v", err)
+		return nil, fmt.Errorf("JobList send request: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
 		responseData := struct {
@@ -126,68 +136,69 @@ func (c *ClientHttp) JobsList() ([]job.Job, error) {
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("parse response body: %v", err)
+			return nil, fmt.Errorf("JobList parse response body: %w", err)
 		}
 
 		if err := json.Unmarshal(body, &responseData); err != nil {
-			return nil, fmt.Errorf("all jobs request unmarshal response %v", err)
+			return nil, fmt.Errorf("JobList unmarshal response %w", err)
 		}
 
 		return responseData.Jobs, nil
 	}
 
-	return nil, fmt.Errorf("all job request: undefined status code %d", resp.StatusCode)
+	return nil, fmt.Errorf("JobList status %d: %w", resp.StatusCode, errWrongResponse)
 }
 
-func (c *ClientHttp) GetJobByName(name string) (*job.Job, error) {
-	req, err := http.NewRequest("GET", c.baseUrl+"/job/"+name, nil)
+func (c *ClientHTTP) GetJobByName(ctx context.Context, name string) (*job.Job, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/job/"+name, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create `job by name` request: %v", err)
+		return nil, fmt.Errorf("GetJobByName create request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("send `jobs by name` request: %v", err)
+		return nil, fmt.Errorf("GetJobByName send request: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
 		respData, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("`job by name request` parse response body: %v", err)
+			return nil, fmt.Errorf("GetJobByName parse response body: %w", err)
 		}
 		jobRes := &job.Job{}
 		if err := json.Unmarshal(respData, jobRes); err != nil {
-			return nil, fmt.Errorf("`job by name` request unmarshal response %v", err)
+			return nil, fmt.Errorf("GetJobByName unmarshal response %w", err)
 		}
 
 		return jobRes, nil
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("send `job by name`, job %s not found", name)
+		return nil, fmt.Errorf("GetJobByName %w", errJobNotFound)
 	}
 
 	if resp.StatusCode == http.StatusInternalServerError {
-		return nil, errors.New("send `job by name` internal server error")
+		return nil, fmt.Errorf("GetJobByName %w", errInternalServerError)
 	}
 
-	return nil, fmt.Errorf("`job by name` request: undefined status code %d", resp.StatusCode)
+	return nil, fmt.Errorf("GetJobByName status %d: %w", resp.StatusCode, errWrongResponse)
 }
 
-func (c *ClientHttp) JobStart(in *JobStartIn) (uuid.UUID, error) {
+func (c *ClientHTTP) JobStart(ctx context.Context, in *JobStartIn) (uuid.UUID, error) {
 	inData, err := json.Marshal(in)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("marshal job start arguments: %v", err)
+		return uuid.UUID{}, fmt.Errorf("marshal job start arguments: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.baseUrl+"/executions", bytes.NewBuffer(inData))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/executions", bytes.NewBuffer(inData))
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("create `job start` request: %v", err)
+		return uuid.UUID{}, fmt.Errorf("JobStart create request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("send `jobs start` request: %v", err)
+		return uuid.UUID{}, fmt.Errorf("JobStart send request: %w", err)
 	}
 
 	if resp.StatusCode == http.StatusOK {
@@ -195,11 +206,11 @@ func (c *ClientHttp) JobStart(in *JobStartIn) (uuid.UUID, error) {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return uuid.UUID{}, fmt.Errorf("send `job by name`, job %s not found", in.Job)
+		return uuid.UUID{}, fmt.Errorf("JobStart %w", errJobNotFound)
 	}
 
 	if resp.StatusCode == http.StatusLocked {
-		return uuid.UUID{}, fmt.Errorf("send `job by name`, job %s locked", in.Job)
+		return uuid.UUID{}, fmt.Errorf("JobStart %w", errLocked)
 	}
 
 	if resp.StatusCode == http.StatusBadRequest {
@@ -207,21 +218,22 @@ func (c *ClientHttp) JobStart(in *JobStartIn) (uuid.UUID, error) {
 		if err != nil {
 			return uuid.UUID{}, err
 		}
-		return uuid.UUID{}, fmt.Errorf("send `job by name`, bad request %s", msg)
+
+		return uuid.UUID{}, fmt.Errorf("JobStart %w: %s", errWrongResponse, msg)
 	}
 
-	return uuid.UUID{}, fmt.Errorf("`job by name` request: undefined status code %d", resp.StatusCode)
+	return uuid.UUID{}, fmt.Errorf("JobStart code %d: %w", resp.StatusCode, errWrongResponse)
 }
 
-func (c *ClientHttp) JobFinish(id uuid.UUID) error {
-	req, err := http.NewRequest("DELETE", c.baseUrl+"/executions/"+id.String(), nil)
+func (c *ClientHTTP) JobFinish(ctx context.Context, id uuid.UUID) error {
+	req, err := http.NewRequestWithContext(ctx, "DELETE", c.baseURL+"/executions/"+id.String(), nil)
 	if err != nil {
-		return fmt.Errorf("create `job finish` request: %v", err)
+		return fmt.Errorf("JobFinish create request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send `jobs finish` request: %v", err)
+		return fmt.Errorf("JobFinish send request: %w", err)
 	}
 
 	if resp.StatusCode == http.StatusOK {
@@ -233,7 +245,8 @@ func (c *ClientHttp) JobFinish(id uuid.UUID) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("send `job finish`, internal error %s", msg)
+
+		return fmt.Errorf("JobFinish %w: %s", errInternalServerError, msg)
 	}
 
 	return nil
@@ -242,14 +255,14 @@ func (c *ClientHttp) JobFinish(id uuid.UUID) error {
 func parseResponseBodyErr(resp *http.Response) (string, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("parse response bosy: %v", err)
+		return "", fmt.Errorf("parseResponseBodyErr: %w", err)
 	}
 	response := struct {
 		Err string `json:"err"`
 	}{Err: ""}
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return "", fmt.Errorf("job create: parse response body: %v", err)
+		return "", fmt.Errorf("parseResponseBodyErr: %w", err)
 	}
 
 	return response.Err, nil

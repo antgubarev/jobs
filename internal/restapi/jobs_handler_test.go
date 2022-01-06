@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/antgubarev/pet/internal/restapi"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,8 @@ import (
 )
 
 func TestJobsList(t *testing.T) {
-	mockJobStorage := &job.MockJobStorage{}
+	t.Parallel()
+	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("GetAll").
 		Return([]job.Job{
 			{
@@ -26,23 +28,24 @@ func TestJobsList(t *testing.T) {
 			},
 		}, nil).Once()
 
-	r := gin.Default()
+	testRouter := gin.Default()
 	jobsHandler := restapi.NewJobsHandler(mockJobStorage)
-	r.GET("/jobs", jobsHandler.ListHandle)
+	testRouter.GET("/jobs", jobsHandler.ListHandle)
 
-	w := httptest.NewRecorder()
+	testWriter := httptest.NewRecorder()
 
 	req, _ := http.NewRequest("GET", "/jobs", nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	testRouter.ServeHTTP(testWriter, req)
 
-	assert.Equal(t, 200, w.Code, "%s", w.Body.Bytes())
+	assert.Equal(t, 200, testWriter.Code, "%s", testWriter.Body.Bytes())
 	mockJobStorage.AssertExpectations(t)
 }
 
 func TestJobListByName(t *testing.T) {
-	mockJobStorage := &job.MockJobStorage{}
+	t.Parallel()
+	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("GetByName", mock.MatchedBy(func(name string) bool {
 		return name == "job1"
 	})).
@@ -51,17 +54,17 @@ func TestJobListByName(t *testing.T) {
 			LockMode: job.HostLockMode,
 		}, nil).Once()
 
-	r := gin.Default()
+	testRouter := gin.Default()
 	jobsHandler := restapi.NewJobsHandler(mockJobStorage)
-	r.GET("/jobs/:name", jobsHandler.ListByNameHandle)
+	testRouter.GET("/jobs/:name", jobsHandler.ListByNameHandle)
 
-	w := httptest.NewRecorder()
+	testWriter := httptest.NewRecorder()
 
 	req, _ := http.NewRequest("GET", "/jobs/job1", nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	r.ServeHTTP(w, req)
+	testRouter.ServeHTTP(testWriter, req)
 
-	assert.Equal(t, 200, w.Code, "%s", w.Body.Bytes())
+	assert.Equal(t, 200, testWriter.Code, "%s", testWriter.Body.Bytes())
 	mockJobStorage.AssertExpectations(t)
 }

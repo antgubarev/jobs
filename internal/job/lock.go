@@ -2,6 +2,7 @@ package job
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +16,8 @@ const (
 	ClusterLockMode LockMode = "cluster"
 )
 
+var errValidationLockArguments = errors.New("lock argument is invalid")
+
 type Locker struct{}
 
 func NewLocker() *Locker {
@@ -27,22 +30,22 @@ type LockArguments struct {
 	StartedAt *time.Time
 }
 
-func (l *Locker) Lock(j *Job, args LockArguments, executions []Execution) (uuid.UUID, error) {
-	if j.LockMode == FreeLockMode {
+func (l *Locker) Lock(lJob *Job, args LockArguments, executions []Execution) (uuid.UUID, error) {
+	if lJob.LockMode == FreeLockMode {
 		return uuid.New(), nil
 	}
-	if err := l.validateHostPidForLockMode(args.Host, args.Pid, j.LockMode); err != nil {
+	if err := l.validateHostPidForLockMode(args.Host, lJob.LockMode); err != nil {
 		return uuid.Nil, err
 	}
 	for _, exec := range executions {
 		if exec.Status != StatusRunning {
 			continue
 		}
-		if j.LockMode == ClusterLockMode && exec.Status == StatusRunning {
-			return exec.Id, new(Locked)
+		if lJob.LockMode == ClusterLockMode && exec.Status == StatusRunning {
+			return exec.ID, new(LockedError)
 		}
-		if j.LockMode == HostLockMode && *exec.Host == *args.Host {
-			return exec.Id, new(Locked)
+		if lJob.LockMode == HostLockMode && *exec.Host == *args.Host {
+			return exec.ID, new(LockedError)
 		}
 	}
 
@@ -54,68 +57,10 @@ func (l *Locker) Lock(j *Job, args LockArguments, executions []Execution) (uuid.
 	return uuid.New(), nil
 }
 
-// type UnlockArguments struct {
-// 	Pid        *int
-// 	Host       *string
-// 	Status     ExecutionStatus
-// 	Msg        *string
-// 	FinishedAt *time.Time
-// }
-
-// func (l *Locker) UnLock(jb *Job, args UnlockArguments) error {
-// 	if args.Status != StatusSuccessed && args.Status != StatusFailed {
-// 		return NewInvalidUnlockArgumentsErr("invalid unlock status")
-// 	}
-// 	executions, err := l.executionStorage.GetByJobName(jb.Name)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if err := l.validateHostPidForLockMode(args.Host, args.Pid, jb.LockMode); err != nil {
-// 		return err
-// 	}
-// 	for _, exec := range executions {
-// 		if jb.LockMode == FreeLockMode && *exec.Host == *args.Host && *exec.Pid == *args.Pid {
-// 			if err := l.finishAndStore(&exec, &args); err != nil {
-// 				return err
-// 			}
-// 			return nil
-// 		}
-// 		if jb.LockMode == ClusterLockMode {
-// 			if err := l.finishAndStore(&exec, &args); err != nil {
-// 				return err
-// 			}
-// 			return nil
-// 		}
-// 		if jb.LockMode == HostLockMode && *exec.Host == *args.Host {
-// 			if err := l.finishAndStore(&exec, &args); err != nil {
-// 				return err
-// 			}
-// 			return nil
-// 		}
-// 	}
-// 	return errors.New("execution not found")
-// }
-
-func (l *Locker) validateHostPidForLockMode(host *string, pid *int, mode LockMode) error {
+func (l *Locker) validateHostPidForLockMode(host *string, mode LockMode) error {
 	if mode == HostLockMode && host == nil {
-		return errors.New("host is required for `host` lock mode")
+		return fmt.Errorf("%w: host is required for `host` lock mode", errValidationLockArguments)
 	}
+
 	return nil
 }
-
-// func (l *Locker) finishAndStore(execution *Execution, args *UnlockArguments) error {
-// 	execution.Status = args.Status
-// 	if args.FinishedAt == nil {
-// 		now := time.Now()
-// 		args.FinishedAt = &now
-// 	}
-// 	execution.FinishedAt = args.FinishedAt
-// 	if execution.FinishedAt.Before(execution.StartedAt) {
-// 		return NewInvalidUnlockArgumentsErr("stop job: finish time must be not after start time")
-// 	}
-// 	execution.Msg = args.Msg
-// 	if err := l.executionStorage.Store(execution); err != nil {
-// 		return fmt.Errorf("store execution: %v", err)
-// 	}
-// 	return nil
-// }

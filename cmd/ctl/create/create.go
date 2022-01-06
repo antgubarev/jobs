@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/antgubarev/pet/internal/restapi"
@@ -30,13 +31,14 @@ func GetCreateSubCommands() []*cli.Command {
 	}
 }
 
-func createJobAction(c *cli.Context) error {
-	client := restapi.NewClientHttp(c.String("server-url"))
-	if err := client.JobCreate(&restapi.CreateJobIn{
-		Name:     c.String("name"),
-		LockMode: c.String("lock-mode"),
+func createJobAction(ctx *cli.Context) error {
+	client := restapi.NewClientHTTP(ctx.String("server-url"))
+	if err := client.JobCreate(context.Background(), &restapi.CreateJobIn{
+		Name:     ctx.String("name"),
+		LockMode: ctx.String("lock-mode"),
 	}); err != nil {
-		return fmt.Errorf("create action: %v", err)
+		return fmt.Errorf("create action: %w", err)
 	}
+
 	return nil
 }

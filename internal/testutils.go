@@ -16,16 +16,19 @@ func DiffToString(changeLog *diff.Changelog) string {
 	for _, change := range *changeLog {
 		result += fmt.Sprintf("'%s' expected: %v, Actual: %v \n", strings.Join(change.Path, "."), change.From, change.To)
 	}
+
 	return result
 }
 
 func CheckDifferErrors(t *testing.T, err error) {
+	t.Helper()
 	if err != nil {
 		t.Errorf("check diff error: %v", err)
 	}
 }
 
-func NewTestBoltDb(t *testing.T) *bolt.DB {
+func NewTestBoltDB(t *testing.T) *bolt.DB {
+	t.Helper()
 	dir, err := ioutil.TempDir("", "boltdb_test")
 	if err != nil {
 		t.Errorf("creating temp dir: %v", err)
@@ -35,9 +38,10 @@ func NewTestBoltDb(t *testing.T) *bolt.DB {
 	if err != nil {
 		t.Errorf("creating temp file: %v", err)
 	}
-	db, err := boltdb.NewBoltDb(file.Name())
+	db, err := boltdb.NewBoltDB(file.Name())
 	if err != nil {
 		t.Errorf("creating bolt file %v", err)
 	}
+
 	return db
 }
