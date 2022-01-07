@@ -47,7 +47,7 @@ func TestJobStartJobBadRequest(t *testing.T) {
 	testRouter := gin.Default()
 	testRouter.POST("/executions", handler.StartHandle)
 
-	body := `{"job": "job", "started_at":"invalid_date"}`
+	body := `{"job": "job", "startedAt":"invalid_date"}`
 	req, _ := http.NewRequest("POST", "/executions", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -79,7 +79,7 @@ func TestStartAllFields(t *testing.T) {
 	testRouter := gin.Default()
 	testRouter.POST("/executions", handler.StartHandle)
 
-	body := `{"job":"job","pid":1,"host":"host1","command":"command","started_at":"2021-11-22T11:22:26+03:00"}`
+	body := `{"job":"job","pid":1,"host":"host1","command":"command","startedAt":"2021-11-22T11:22:26+03:00"}`
 	req, _ := http.NewRequest("POST", "/executions", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 

@@ -55,13 +55,7 @@ linters:
     - interfacer # deprecated
     - godox # Not relevant
     - exhaustivestruct # Not relevant
-    - wrapcheck # Too strict
-    #- gomnd # Too strict
-    # - noctx # Too strict
-    - goerr113 # Too strict
-    #- gochecknoglobals # Not relevant
     - wsl # Too strict
-    #- gochecknoinits # Not relevant
     - gofumpt # Not relevant
 
 issues:

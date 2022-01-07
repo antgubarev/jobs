@@ -47,7 +47,7 @@ func (bes *ExecutionStorage) Store(execution *job.Execution) error {
 	return nil
 }
 
-func (bes *ExecutionStorage) GetByID(executionID uuid.UUID) (job.Execution, error) {
+func (bes *ExecutionStorage) GetByID(executionID uuid.UUID) (*job.Execution, error) {
 	var result job.Execution
 
 	err := bes.db.View(func(tx *bolt.Tx) error {
@@ -74,10 +74,10 @@ func (bes *ExecutionStorage) GetByID(executionID uuid.UUID) (job.Execution, erro
 		return nil
 	})
 	if err != nil {
-		return result, fmt.Errorf("GetByID: %w", err)
+		return &result, fmt.Errorf("GetByID: %w", err)
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 func (bes *ExecutionStorage) GetByJobName(jobName string) ([]job.Execution, error) {
@@ -128,32 +128,33 @@ func (bes *ExecutionStorage) DeleteByJobName(jobName string) error {
 	return nil
 }
 
-func (bes *ExecutionStorage) Delete(execution *job.Execution) error {
+func (bes *ExecutionStorage) Delete(executionID uuid.UUID) error {
 	if err := bes.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := bes.GetBucket(tx)
 		if err != nil {
 			return err
 		}
-		bucketCursor := bucket.Cursor()
-		prefix := bes.GetExecutionNameKeyPrefix(execution.Job)
-		for k, v := bucketCursor.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = bucketCursor.Next() {
+		if err := bucket.ForEach(func(key, value []byte) error {
 			var e job.Execution
-			if err := json.Unmarshal(v, &e); err != nil {
-				return fmt.Errorf("execution delete: unmarshal job: %w", err)
+			if err := json.Unmarshal(value, &e); err != nil {
+				return fmt.Errorf("unmarshal execution: %w", err)
 			}
-
-			if e.Host == execution.Host && e.Pid == execution.Pid {
-				if err := bucketCursor.Delete(); err != nil {
-					return fmt.Errorf("execution remove: %w", err)
+			if e.ID.String() == executionID.String() {
+				if err := bucket.Delete(key); err != nil {
+					return fmt.Errorf("remove execution from bucket: %w", err)
 				}
 
 				return nil
 			}
+
+			return nil
+		}); err != nil {
+			return fmt.Errorf("search execution in bucket: %w", err)
 		}
 
-		return fmt.Errorf("execution delete: %w", errExecutionNotFound)
+		return nil
 	}); err != nil {
-		return fmt.Errorf("Delete job: %w", err)
+		return fmt.Errorf("Delete execution: %w", err)
 	}
 
 	return nil

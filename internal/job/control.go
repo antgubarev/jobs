@@ -75,7 +75,7 @@ func (e *Controller) Finish(id uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("finish: %w", err)
 	}
-	if err := e.executionStorage.Delete(&execution); err != nil {
+	if err := e.executionStorage.Delete(execution.ID); err != nil {
 		return fmt.Errorf("finish: %w", err)
 	}
 

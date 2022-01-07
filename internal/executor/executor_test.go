@@ -21,7 +21,7 @@ import (
 func TestStartAndFinish(t *testing.T) {
 	t.Parallel()
 	restClient := new(mocks.Client)
-	restClient.On("JobStart", mock.MatchedBy(func(in *restapi.JobStartIn) bool {
+	restClient.On("JobStart", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(in *restapi.JobStartIn) bool {
 		return in.Job == "job" && *in.Command == "sh ../../tests/fixtures/echo.sh 3 1"
 	})).Return(uuid.New(), nil)
 
@@ -71,7 +71,7 @@ func readOutFile(t *testing.T, f *os.File) string {
 func TestStartAndSendSigint(t *testing.T) {
 	t.Parallel()
 	restClient := new(mocks.Client)
-	restClient.On("JobStart", mock.MatchedBy(func(in *restapi.JobStartIn) bool {
+	restClient.On("JobStart", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(in *restapi.JobStartIn) bool {
 		return in.Job == "job" && *in.Command == "sh ../../tests/fixtures/echo.sh 3 5"
 	})).Return(uuid.New(), nil)
 

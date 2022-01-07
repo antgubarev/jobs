@@ -14,7 +14,7 @@ type Storage interface {
 type ExecutionStorage interface {
 	Store(execution *Execution) error
 	GetByJobName(jobName string) ([]Execution, error)
-	GetByID(id uuid.UUID) (Execution, error)
+	GetByID(id uuid.UUID) (*Execution, error)
 	DeleteByJobName(jobName string) error
-	Delete(execution *Execution) error
+	Delete(executionID uuid.UUID) error
 }

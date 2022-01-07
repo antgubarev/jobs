@@ -160,6 +160,7 @@ func TestBoltDbExecutionGetById(t *testing.T) {
 
 	executionID := uuid.New()
 	original := job.NewRunningExecution("job")
+	original.SetID(executionID)
 	original.SetCommand("command")
 	original.SetPid(1)
 	original.SetHost("host1")
@@ -181,7 +182,7 @@ func TestBoltDbExecutionDelete(t *testing.T) {
 		os.Remove(db.Path())
 	}(db)
 
-	executions := make([]*job.Execution, 4)
+	executions := make([]*job.Execution, 2)
 	executions[0] = job.NewRunningExecution("job")
 	executions[0].SetCommand("command")
 	executions[0].SetPid(1)
@@ -193,17 +194,16 @@ func TestBoltDbExecutionDelete(t *testing.T) {
 	executions[1].SetHost("host2")
 
 	err := store.Store(executions[0])
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = store.Store(executions[1])
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	executionForDelete := job.NewRunningExecution("job")
-	executionForDelete.SetID(uuid.Nil)
-	executionForDelete.SetPid(1)
-	executionForDelete.SetHost("host1")
-
-	err = store.Delete(executionForDelete)
+	err = store.Delete(executions[0].ID)
 	assert.NoError(t, err)
 
 	items, err := store.GetByJobName("job")

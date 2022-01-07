@@ -7,10 +7,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var (
-	errExecutionNotFound = errors.New("execution ot found")
-	errBucketNotFound    = errors.New("bucket not found")
-)
+var errBucketNotFound = errors.New("bucket not found")
 
 const BoltdbFileAccess = 0666
 

@@ -46,15 +46,14 @@ func TestFinish(t *testing.T) {
 	t.Parallel()
 	executionStorage := new(mocks.ExecutionStorage)
 	executionID := uuid.New()
-	executionStorage.On("GetById", executionID).Return(func() *job.Execution {
+	executionStorage.On("GetByID", executionID).Return(func(uuid.UUID) *job.Execution {
 		exec := job.NewRunningExecution(TestJobName)
 		exec.SetID(executionID)
 
 		return exec
 	}, nil)
-	executionStorage.On("Delete", mock.MatchedBy(func(execution *job.Execution) bool {
-		return execution.Job == TestJobName &&
-			execution.ID == executionID
+	executionStorage.On("Delete", mock.MatchedBy(func(passedExecutionID uuid.UUID) bool {
+		return passedExecutionID == executionID
 	})).Return(nil)
 	controller := job.NewController(executionStorage)
 	err := controller.Finish(executionID)

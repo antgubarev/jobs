@@ -14,13 +14,13 @@ type ExecutionStorage struct {
 	mock.Mock
 }
 
-// Delete provides a mock function with given fields: execution
-func (_m *ExecutionStorage) Delete(execution *job.Execution) error {
-	ret := _m.Called(execution)
+// Delete provides a mock function with given fields: executionID
+func (_m *ExecutionStorage) Delete(executionID uuid.UUID) error {
+	ret := _m.Called(executionID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*job.Execution) error); ok {
-		r0 = rf(execution)
+	if rf, ok := ret.Get(0).(func(uuid.UUID) error); ok {
+		r0 = rf(executionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -43,14 +43,16 @@ func (_m *ExecutionStorage) DeleteByJobName(jobName string) error {
 }
 
 // GetByID provides a mock function with given fields: id
-func (_m *ExecutionStorage) GetByID(id uuid.UUID) (job.Execution, error) {
+func (_m *ExecutionStorage) GetByID(id uuid.UUID) (*job.Execution, error) {
 	ret := _m.Called(id)
 
-	var r0 job.Execution
-	if rf, ok := ret.Get(0).(func(uuid.UUID) job.Execution); ok {
+	var r0 *job.Execution
+	if rf, ok := ret.Get(0).(func(uuid.UUID) *job.Execution); ok {
 		r0 = rf(id)
 	} else {
-		r0 = ret.Get(0).(job.Execution)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*job.Execution)
+		}
 	}
 
 	var r1 error

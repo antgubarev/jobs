@@ -27,7 +27,7 @@ func TestJobCreate(t *testing.T) {
 					jobModel.LockMode == job.HostLockMode
 			})).
 		Return(nil).Once()
-	mockJobStorage.On("GetByName", "name").Return(nil, nil)
+	mockJobStorage.On("GetByName", TestJobName).Return(nil, nil)
 
 	testRouter := gin.Default()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
@@ -38,7 +38,7 @@ func TestJobCreate(t *testing.T) {
 	var data []byte
 	_ = json.Unmarshal(data, inRequest)
 
-	body := `{"name":"name","lockMode":"host"}`
+	body := `{"name":"job","lockMode":"host"}`
 	req, _ := http.NewRequest("POST", "/job", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -89,7 +89,7 @@ func TestJobDelete(t *testing.T) {
 	testRouter.DELETE("/job/:name", jobHandler.DeleteHandle)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("DELETE", "/job/name", nil)
+	req, _ := http.NewRequest("DELETE", "/job/job", nil)
 
 	testRouter.ServeHTTP(w, req)
 
