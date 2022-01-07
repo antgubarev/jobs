@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/antgubarev/pet/internal/boltdb"
+	"github.com/gin-gonic/gin"
 	"github.com/r3labs/diff/v2"
 	bolt "go.etcd.io/bbolt"
 )
@@ -44,4 +45,10 @@ func NewTestBoltDB(t *testing.T) *bolt.DB {
 	}
 
 	return db
+}
+
+func NewTestRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+
+	return gin.New()
 }

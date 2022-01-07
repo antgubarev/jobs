@@ -5,10 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/antgubarev/pet/internal"
 	"github.com/antgubarev/pet/internal/job"
 	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/antgubarev/pet/internal/restapi"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -28,7 +28,7 @@ func TestJobsList(t *testing.T) {
 			},
 		}, nil).Once()
 
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	jobsHandler := restapi.NewJobsHandler(mockJobStorage)
 	testRouter.GET("/jobs", jobsHandler.ListHandle)
 
@@ -54,7 +54,7 @@ func TestJobListByName(t *testing.T) {
 			LockMode: job.HostLockMode,
 		}, nil).Once()
 
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	jobsHandler := restapi.NewJobsHandler(mockJobStorage)
 	testRouter.GET("/jobs/:name", jobsHandler.ListByNameHandle)
 

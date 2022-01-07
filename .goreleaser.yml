@@ -1,14 +1,29 @@
 builds:
-  - env:
+  - id: "server"
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
       - windows
       - darwin
+    main: ./cmd/server
+    binary: server
+  - id: "executor"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    main: ./cmd/executor
+    binary: executor
 
 archives:
-  - id: pingbot
-    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  - id: jobs
+    builds:
+      - "server"
+      - "executor"
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -16,14 +31,11 @@ archives:
     files:
       - LICENSE.md
       - CHANGELOG.md
+    wrap_in_directory: "true"
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
 snapshot:
   name_template: "{{ incpatch .Tag }}-next"
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
+  skip: true

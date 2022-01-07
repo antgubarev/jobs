@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antgubarev/pet/internal"
 	"github.com/antgubarev/pet/internal/job"
 	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/antgubarev/pet/internal/restapi"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,7 +24,7 @@ func TestJobStartJobNotFound(t *testing.T) {
 
 	testWriter := httptest.NewRecorder()
 	handler := restapi.NewExecutionHandler(jobStorage, executionStorage)
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	testRouter.POST("/executions", handler.StartHandle)
 
 	body := `{"job": "job"}`
@@ -44,7 +44,7 @@ func TestJobStartJobBadRequest(t *testing.T) {
 
 	testWriter := httptest.NewRecorder()
 	handler := restapi.NewExecutionHandler(jobStorage, executionStorage)
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	testRouter.POST("/executions", handler.StartHandle)
 
 	body := `{"job": "job", "startedAt":"invalid_date"}`
@@ -76,7 +76,7 @@ func TestStartAllFields(t *testing.T) {
 	testWriter := httptest.NewRecorder()
 	handler := restapi.NewExecutionHandler(jobStorage, new(mocks.ExecutionStorage))
 	handler.SetController(controller)
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	testRouter.POST("/executions", handler.StartHandle)
 
 	body := `{"job":"job","pid":1,"host":"host1","command":"command","startedAt":"2021-11-22T11:22:26+03:00"}`
@@ -98,7 +98,7 @@ func TestFinishJobNotFound(t *testing.T) {
 	testWriter := httptest.NewRecorder()
 	handler := restapi.NewExecutionHandler(new(mocks.JobStorage), new(mocks.ExecutionStorage))
 	handler.SetController(controller)
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	testRouter.DELETE("/execution/:id", handler.FinishHandle)
 
 	req, _ := http.NewRequest("DELETE", "/execution/"+executionID.String(), nil)

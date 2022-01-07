@@ -1,11 +1,7 @@
-name: code quaility
+name: Quaility
 
 on:
   push:
-    tags:
-      - v*
-    branches:
-      - master
   pull_request:
 
 env:
@@ -18,16 +14,26 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-
       - run: go mod tidy -v
+
   linters:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: pwd
       - uses: golangci/golangci-lint-action@v2
         with:
           version: latest
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/checkout@v2
+      - run: go test -coverprofile=coverage.txt -covermode=atomic -v -timeout 120s ./...
+      - run: bash <(curl -s https://codecov.io/bash)

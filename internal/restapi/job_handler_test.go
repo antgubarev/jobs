@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/antgubarev/pet/internal"
 	"github.com/antgubarev/pet/internal/job"
 	"github.com/antgubarev/pet/internal/job/mocks"
 	"github.com/antgubarev/pet/internal/restapi"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -29,7 +29,7 @@ func TestJobCreate(t *testing.T) {
 		Return(nil).Once()
 	mockJobStorage.On("GetByName", TestJobName).Return(nil, nil)
 
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
 	testRouter.POST("/job", jobHandler.CreateHandle)
 
@@ -53,7 +53,7 @@ func TestJobCreateExists(t *testing.T) {
 	mockJobStorage := &mocks.JobStorage{}
 	mockJobStorage.On("GetByName", "job").Return(&job.Job{}, nil)
 
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
 	testRouter.POST("/job", jobHandler.CreateHandle)
 
@@ -84,7 +84,7 @@ func TestJobDelete(t *testing.T) {
 		return name == TestJobName
 	})).Return(nil).Once()
 
-	testRouter := gin.Default()
+	testRouter := internal.NewTestRouter()
 	jobHandler := restapi.NewJobHandler(mockJobStorage)
 	testRouter.DELETE("/job/:name", jobHandler.DeleteHandle)
 
