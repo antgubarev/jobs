@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/antgubarev/pet/internal/boltdb"
 	"github.com/antgubarev/pet/internal/job"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/glog"
@@ -13,11 +14,12 @@ import (
 var errUndefinedLockMode = errors.New("undefined lock mode")
 
 type JobHandler struct {
-	jobStorage job.Storage
+	jobStorage       job.Storage
+	executuonStorage job.ExecutionStorage
 }
 
-func NewJobHandler(jobStorage job.Storage) *JobHandler {
-	return &JobHandler{jobStorage: jobStorage}
+func NewJobHandler(jobStorage job.Storage, executionStorage job.ExecutionStorage) *JobHandler {
+	return &JobHandler{jobStorage: jobStorage, executuonStorage: executionStorage}
 }
 
 func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
@@ -30,7 +32,7 @@ func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
 
 	existJob, err := jh.jobStorage.GetByName(createJobIn.Name)
 	if err != nil {
-		glog.Errorf("find job by name: %v", err)
+		glog.Errorf("CreateHandle: %v", err)
 		ctx.JSON(http.StatusInternalServerError, nil)
 
 		return
@@ -50,7 +52,7 @@ func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
 	}
 	testJob.LockMode = parsedLockMode
 	if err := jh.jobStorage.Store(testJob); err != nil {
-		glog.Errorf("create handle 500: %v", err)
+		glog.Errorf("CreateHandle: %v", err)
 		ctx.JSON(http.StatusInternalServerError, nil)
 
 		return
@@ -60,15 +62,30 @@ func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
 }
 
 func (jh *JobHandler) DeleteHandle(ctx *gin.Context) {
-	// TODO delete executions
-	_, ok := jh.findJobByName(ctx, ctx.Param("name"))
+	jobName := ctx.Param("name")
+	_, ok := jh.findJobByName(ctx, jobName)
 	if !ok {
-		ctx.JSON(http.StatusNotFound, nil)
+		writeNotFoundResponse(ctx, "job not found")
 
 		return
 	}
 
-	if err := jh.jobStorage.DeleteByName(ctx.Param("name")); err != nil {
+	executuons, err := jh.executuonStorage.GetByJobName(jobName)
+	if err != nil {
+		writeInternalServerErrorResponse(ctx, err)
+
+		return
+	}
+
+	for _, executuon := range executuons {
+		if executuon.Status == job.StatusRunning {
+			writeLockResponse(ctx, "stop all job's execution and try again")
+
+			return
+		}
+	}
+
+	if err := jh.jobStorage.DeleteByName(jobName); err != nil {
 		ctx.JSON(http.StatusOK, nil)
 
 		return
@@ -79,15 +96,13 @@ func (jh *JobHandler) DeleteHandle(ctx *gin.Context) {
 
 func (jh *JobHandler) findJobByName(ctx *gin.Context, name string) (*job.Job, bool) {
 	job, err := jh.jobStorage.GetByName(name)
-	if err != nil {
-		glog.Errorf("find job by name: %v", err)
+	if err != nil && !errors.Is(err, boltdb.ErrJobNotFound) {
+		glog.Errorf("findJobByName: %v", err)
 		ctx.JSON(http.StatusInternalServerError, nil)
 
 		return nil, false
 	}
 	if job == nil {
-		ctx.JSON(http.StatusNotFound, nil)
-
 		return nil, false
 	}
 

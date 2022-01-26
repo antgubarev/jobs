@@ -2,6 +2,7 @@ package boltdb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/antgubarev/pet/internal/job"
@@ -13,6 +14,8 @@ type JobStorage struct {
 }
 
 const JobBucketName string = "jobs"
+
+var ErrJobNotFound = errors.New("job not found")
 
 func NewJobStorage(boltDB *bolt.DB) (*JobStorage, error) {
 	if err := CreateBucketIfNotExists(boltDB, JobBucketName); err != nil {
@@ -49,7 +52,7 @@ func (s *JobStorage) Store(job *job.Job) error {
 }
 
 func (s *JobStorage) GetByName(name string) (*job.Job, error) {
-	var result job.Job
+	var result *job.Job
 
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		bucket, err := s.GetBucket(tx)
@@ -57,8 +60,12 @@ func (s *JobStorage) GetByName(name string) (*job.Job, error) {
 			return err
 		}
 		data := bucket.Get(s.GetJobKey(name))
-		if err := json.Unmarshal(data, &result); err != nil {
-			return fmt.Errorf("getbyname: unmarshal job: %w", err)
+		if data == nil {
+			return fmt.Errorf("%w", ErrJobNotFound)
+		}
+		result = &job.Job{}
+		if err := json.Unmarshal(data, result); err != nil {
+			return fmt.Errorf("unmarshal job: %w", err)
 		}
 
 		return nil
@@ -66,7 +73,7 @@ func (s *JobStorage) GetByName(name string) (*job.Job, error) {
 		return nil, fmt.Errorf("GetByName: %w", err)
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 func (s *JobStorage) DeleteByName(name string) error {

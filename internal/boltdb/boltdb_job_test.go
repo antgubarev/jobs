@@ -107,6 +107,19 @@ func TestBoltDbStorageStoreGetByName(t *testing.T) {
 	assert.Equal(t, jobs[0].LockMode, jb.LockMode, 0)
 }
 
+func TestBoltDbStorageGetByNameNotFound(t *testing.T) {
+	t.Parallel()
+	store, testDB := newTestJobStorage(t)
+	defer func(db *bolt.DB) {
+		db.Close()
+		os.Remove(db.Path())
+	}(testDB)
+
+	jb, err := store.GetByName("job1")
+	assert.Error(t, fmt.Errorf("GetByName: %w", boltdb.ErrJobNotFound), err)
+	assert.Nil(t, jb)
+}
+
 func TestBoltDbStorageDeleteByName(t *testing.T) {
 	t.Parallel()
 	testJobStorage, testDB := newTestJobStorage(t)

@@ -7,14 +7,16 @@ import (
 )
 
 type Job struct {
-	Name     string   `json:"name"`
-	LockMode LockMode `json:"lockMode"`
+	Name      string    `json:"name"`
+	LockMode  LockMode  `json:"lockMode"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func NewJob(name string) *Job {
 	return &Job{
-		Name:     name,
-		LockMode: HostLockMode,
+		Name:      name,
+		LockMode:  HostLockMode,
+		CreatedAt: time.Now(),
 	}
 }
 

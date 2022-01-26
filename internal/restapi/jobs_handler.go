@@ -27,7 +27,6 @@ func (jsh *JobsHandler) ListHandle(ctx *gin.Context) {
 }
 
 func (jsh *JobsHandler) ListByNameHandle(ctx *gin.Context) {
-	// @todo need return one job
 	name := ctx.Param("name")
 
 	job, err := jsh.store.GetByName(name)
