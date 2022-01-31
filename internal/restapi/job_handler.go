@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/antgubarev/pet/internal/boltdb"
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/glog"
 )

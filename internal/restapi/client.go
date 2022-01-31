@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/google/uuid"
 )
 

@@ -5,10 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/antgubarev/pet/internal"
-	"github.com/antgubarev/pet/internal/job"
-	"github.com/antgubarev/pet/internal/job/mocks"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal"
+	"github.com/antgubarev/jobs/internal/job"
+	"github.com/antgubarev/jobs/internal/job/mocks"
+	"github.com/antgubarev/jobs/internal/restapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

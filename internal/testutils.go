@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antgubarev/pet/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/boltdb"
 	"github.com/gin-gonic/gin"
 	"github.com/r3labs/diff/v2"
 	bolt "go.etcd.io/bbolt"

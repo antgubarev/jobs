@@ -3,8 +3,8 @@ package job_test
 import (
 	"testing"
 
-	"github.com/antgubarev/pet/internal"
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/stretchr/testify/assert"
 )
 

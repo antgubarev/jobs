@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/antgubarev/pet/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/boltdb"
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/bbolt"
 )

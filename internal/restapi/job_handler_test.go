@@ -8,11 +8,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/antgubarev/pet/internal"
-	"github.com/antgubarev/pet/internal/boltdb"
-	"github.com/antgubarev/pet/internal/job"
-	"github.com/antgubarev/pet/internal/job/mocks"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal"
+	"github.com/antgubarev/jobs/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/job"
+	"github.com/antgubarev/jobs/internal/job/mocks"
+	"github.com/antgubarev/jobs/internal/restapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -177,14 +177,14 @@ func TestJobDelete(t *testing.T) {
 			jobHandler := restapi.NewJobHandler(mockJobStorage, mockExecutionStorage)
 			testRouter.DELETE("/job/:name", jobHandler.DeleteHandle)
 
-			w := httptest.NewRecorder()
+			writer := httptest.NewRecorder()
 			req, err := http.NewRequest("DELETE", "/job/"+testCase.jobName, nil)
 			if err != nil {
 				t.Fatalf("send request %v", err)
 			}
 
-			testRouter.ServeHTTP(w, req)
-			assert.Equal(t, testCase.responseStatus, w.Code)
+			testRouter.ServeHTTP(writer, req)
+			assert.Equal(t, testCase.responseStatus, writer.Code)
 			if mockJobStorage != nil {
 				mockJobStorage.AssertExpectations(t)
 			}
@@ -193,7 +193,7 @@ func TestJobDelete(t *testing.T) {
 			}
 			body := testCase.responseBody()
 			if body != nil {
-				assert.Equal(t, *body, w.Body.String())
+				assert.Equal(t, *body, writer.Body.String())
 			}
 		})
 	}

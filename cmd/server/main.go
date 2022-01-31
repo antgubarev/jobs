@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/antgubarev/pet/internal/boltdb"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/restapi"
 )
 
 const TIMEOUT = 5

@@ -5,10 +5,10 @@ package mocks
 import (
 	context "context"
 
-	job "github.com/antgubarev/pet/internal/job"
+	job "github.com/antgubarev/jobs/internal/job"
 	mock "github.com/stretchr/testify/mock"
 
-	restapi "github.com/antgubarev/pet/internal/restapi"
+	restapi "github.com/antgubarev/jobs/internal/restapi"
 
 	uuid "github.com/google/uuid"
 )

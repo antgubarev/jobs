@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/antgubarev/pet/internal/executor"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal/executor"
+	"github.com/antgubarev/jobs/internal/restapi"
 	"github.com/urfave/cli/v2"
 )
 

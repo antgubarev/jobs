@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antgubarev/pet/internal"
-	"github.com/antgubarev/pet/internal/boltdb"
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal"
+	"github.com/antgubarev/jobs/internal/boltdb"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/google/uuid"
 	"github.com/r3labs/diff/v2"
 	"github.com/stretchr/testify/assert"

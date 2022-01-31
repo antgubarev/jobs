@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antgubarev/pet/internal"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal"
+	"github.com/antgubarev/jobs/internal/restapi"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal/job"
 	bolt "go.etcd.io/bbolt"
 )
 

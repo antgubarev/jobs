@@ -1,28 +1,36 @@
 builds:
-  - id: "server"
+  - id: "jobsrv"
     env:
       - CGO_ENABLED=0
     goos:
       - linux
       - windows
-      - darwin
     main: ./cmd/server
-    binary: server
-  - id: "executor"
+    binary: jobsrv
+  - id: "jobsexec"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    main: ./cmd/executor
+    binary: jobsexec
+  - id: "jobsctl"
     env:
       - CGO_ENABLED=0
     goos:
       - linux
       - windows
       - darwin
-    main: ./cmd/executor
-    binary: executor
+    main: ./cmd/ctl
+    binary: jobsctl
 
 archives:
   - id: jobs
     builds:
-      - "server"
-      - "executor"
+      - "jobsrv"
+      - "jobsexec"
+      - "jobsctl"
     name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     format: tar.gz
     format_overrides:

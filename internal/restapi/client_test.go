@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/antgubarev/pet/internal/job"
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal/job"
+	"github.com/antgubarev/jobs/internal/restapi"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,15 +18,15 @@ func TestCreateJob(t *testing.T) {
 	t.Parallel()
 	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		decoder := json.NewDecoder(request.Body)
-		var in restapi.CreateJobIn
-		err := decoder.Decode(&in)
+		var createJobIn restapi.CreateJobIn
+		err := decoder.Decode(&createJobIn)
 		if err != nil {
 			t.Error(err)
 
 			return
 		}
-		assert.Equal(t, "job", in.Name)
-		assert.Equal(t, "cluster", in.LockMode)
+		assert.Equal(t, "job", createJobIn.Name)
+		assert.Equal(t, "cluster", createJobIn.LockMode)
 	}))
 	defer testServer.Close()
 
@@ -206,8 +206,8 @@ func TestJobByName(t *testing.T) {
 
 func TestJobByNameNotFound(t *testing.T) {
 	t.Parallel()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusNotFound)
 	}))
 	defer ts.Close()
 
@@ -218,8 +218,8 @@ func TestJobByNameNotFound(t *testing.T) {
 
 func TestJobInternalServerError(t *testing.T) {
 	t.Parallel()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
@@ -230,8 +230,8 @@ func TestJobInternalServerError(t *testing.T) {
 
 func TestJobByNameUndefinedStatus(t *testing.T) {
 	t.Parallel()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(http.StatusAccepted)
 	}))
 	defer ts.Close()
 
@@ -242,8 +242,8 @@ func TestJobByNameUndefinedStatus(t *testing.T) {
 
 func TestJobStart(t *testing.T) {
 	t.Parallel()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
@@ -278,8 +278,8 @@ func TestJobStartBadRequest(t *testing.T) {
 
 func jobStartWithResponseCode(t *testing.T, responseCode int) error {
 	t.Helper()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(responseCode)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(responseCode)
 	}))
 	defer ts.Close()
 
@@ -303,8 +303,8 @@ func TestJobStartLocked(t *testing.T) {
 
 func TestJobFinish(t *testing.T) {
 	t.Parallel()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 

@@ -3,7 +3,7 @@ package restapi
 import (
 	"net/http"
 
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

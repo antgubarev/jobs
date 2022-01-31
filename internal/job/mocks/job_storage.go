@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	job "github.com/antgubarev/pet/internal/job"
+	job "github.com/antgubarev/jobs/internal/job"
 	mock "github.com/stretchr/testify/mock"
 )
 

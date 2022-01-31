@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/antgubarev/pet/internal/restapi"
+	"github.com/antgubarev/jobs/internal/restapi"
 	"github.com/golang/glog"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"

@@ -1,4 +1,4 @@
-module github.com/antgubarev/pet
+module github.com/antgubarev/jobs
 
 go 1.17
 

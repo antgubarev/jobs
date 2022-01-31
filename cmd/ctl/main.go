@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/antgubarev/pet/cmd/ctl/command"
+	"github.com/antgubarev/jobs/cmd/ctl/command"
 	"github.com/golang/glog"
 )
 

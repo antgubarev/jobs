@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/antgubarev/pet/internal/job"
+	"github.com/antgubarev/jobs/internal/job"
 	"github.com/google/uuid"
 	bolt "go.etcd.io/bbolt"
 )
