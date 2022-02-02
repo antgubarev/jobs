@@ -28,6 +28,9 @@ func NewServer(addr string, boltDB *bbolt.DB) *http.Server {
 	router.POST("/job", jobHandler.CreateHandle)
 	router.DELETE("/job/:name", jobHandler.DeleteHandle)
 
+	jobStatusHandler := NewJobStatusHandler(jobStorage)
+	router.POST("/job/:name/:action", jobStatusHandler.Action)
+
 	executionHandler := NewExecutionHandler(jobStorage, executionStorage)
 	router.POST("/executions", executionHandler.StartHandle)
 	router.DELETE("/execution/:id", executionHandler.FinishHandle)

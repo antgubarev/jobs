@@ -6,9 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type Status string
+
+const (
+	JobStatusActive = "active"
+	JobStatusPaused = "paused"
+)
+
 type Job struct {
 	Name      string    `json:"name"`
 	LockMode  LockMode  `json:"lockMode"`
+	Status    Status    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -16,8 +24,17 @@ func NewJob(name string) *Job {
 	return &Job{
 		Name:      name,
 		LockMode:  HostLockMode,
+		Status:    JobStatusActive,
 		CreatedAt: time.Now(),
 	}
+}
+
+func (j *Job) Start() {
+	j.Status = JobStatusActive
+}
+
+func (j *Job) Pause() {
+	j.Status = JobStatusPaused
 }
 
 type ExecutionStatus string

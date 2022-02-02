@@ -8,7 +8,8 @@ Processes manager (cron jobs, workers, etc.) which allows runtime control and wa
 - Multiclustrer (Comming soon...)
 - Diferent process lanuching types (once at host or once at cluster)
 - Simple and fast install (self-storage, free-dependency)
-- Stopping process with jobsctl or API (Comming soon...)
+- Hot stopping process with jobsctl or API (Comming soon...)
+- Hot starting/pausing job
 - Jobs observability (logs and statuses) (Comming soon...)
 - You can create self GUI with HTTP API
 

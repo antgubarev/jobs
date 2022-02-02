@@ -15,39 +15,38 @@ consumes:
 produces:
   - application/json
 schemes:
-- "http"
+  - "http"
 
 paths:
-    
   /executions:
     post:
       summary: "Start the execution for job."
       parameters:
-      - name: "body"
-        in: "body"
-        schema:
-          type: "object"
-          properties:
-            job:
-              type: "string"
-              description: "unique job name"
-              example: "job"
-            pid:
-              type: "integer"
-              description: "process pid (default null)"
-              example: "1234"
-            host:
-              type: "string"
-              description: "process host (default null)"
-              example: "node_11"
-            startedAt:
-              type: "string"
-              description: "Ececution start time (RFC3399), default: current time"
-              example: "2019-10-12T07:20:50.52Z"
-            command:
-              type: "string"
-              description: "execution command"
-              example: "systemctl reload"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "object"
+            properties:
+              job:
+                type: "string"
+                description: "unique job name"
+                example: "job"
+              pid:
+                type: "integer"
+                description: "process pid (default null)"
+                example: "1234"
+              host:
+                type: "string"
+                description: "process host (default null)"
+                example: "node_11"
+              startedAt:
+                type: "string"
+                description: "Ececution start time (RFC3399), default: current time"
+                example: "2019-10-12T07:20:50.52Z"
+              command:
+                type: "string"
+                description: "execution command"
+                example: "systemctl reload"
       responses:
         "200":
           description: "execution created"
@@ -67,11 +66,11 @@ paths:
     delete:
       summary: "Finish the execution"
       parameters:
-      - name: "id"
-        in: "path"
-        description: "execution id"
-        required: true
-        type: "string"
+        - name: "id"
+          in: "path"
+          description: "execution id"
+          required: true
+          type: "string"
       responses:
         "200":
           description: "execution finished"
@@ -80,38 +79,75 @@ paths:
     post:
       summary: "Create new job"
       parameters:
-      - name: "body"
-        in: "body"
-        schema:
-          type: "object"
-          properties:
-            name:
-              type: "string"
-              description: "job name"
-              example: "my_job"
-            lockMode:
-              type: "string"
-              description: "default `free`"
-              enum:
-              - "free"
-              - "cluster"
-              - "host"
-              example: "cluster"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "object"
+            properties:
+              name:
+                type: "string"
+                description: "job name"
+                example: "my_job"
+              status:
+                type: "string"
+                description: "init status, default: `active`"
+                enum:
+                  - "paused"
+                  - "active"
+                example: "active"
+              lockMode:
+                type: "string"
+                description: "default `free`"
+                enum:
+                  - "free"
+                  - "cluster"
+                  - "host"
+                example: "cluster"
       responses:
         "201":
           description: "job created"
         "400":
           description: "validation error"
 
+  /job/{name}/pause:
+    post:
+      summary: "Pause job, processes will not be runned"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "job name"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "job has been paused"
+        "404":
+          description: "job not found"
+
+  /job/{name}/start:
+    post:
+      summary: "Start job, processes can run"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "job name"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "job has been started"
+        "404":
+          description: "job not found"
+
   /job/{name}:
     delete:
       summary: "Delete a job"
       parameters:
-      - name: "name"
-        in: "path"
-        description: "Job unique name"
-        required: true
-        type: "string"
+        - name: "name"
+          in: "path"
+          description: "Job unique name"
+          required: true
+          type: "string"
       responses:
         "200":
           description: "job updated"
@@ -119,20 +155,20 @@ paths:
           description: "job not found"
         "423":
           description: "job has active executions"
-    
+
   /jobs:
     get:
       summary: "List of all jobs"
       parameters:
-      - name: "body"
-        in: "body"
-        schema:
-          type: "object"
-          properties:
-            name:
-              type: "string"
-              description: "job name"
-              example: "my_job"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "object"
+            properties:
+              name:
+                type: "string"
+                description: "job name"
+                example: "my_job"
       responses:
         "200":
           description: "list of jobs"
@@ -156,9 +192,9 @@ definitions:
         type: "string"
         description: "Lock mode"
         enum:
-        - "free"
-        - "cluster"
-        - "host"
+          - "free"
+          - "cluster"
+          - "host"
 
   Execution:
     type: "object"
@@ -186,10 +222,10 @@ definitions:
         type: "string"
         description: "Execution status"
         enum:
-        - "Running"
-        - "Successed"
-        - "Failed"
+          - "Running"
+          - "Successed"
+          - "Failed"
       result:
         type: string
         description: "Status reason"
-        example: "successfull"  
+        example: "successfull"

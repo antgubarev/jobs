@@ -21,58 +21,114 @@ const TestJobName = "job"
 
 func TestJobCreate(t *testing.T) {
 	t.Parallel()
-	mockJobStorage := &mocks.JobStorage{}
-	mockJobStorage.On("Store",
-		mock.MatchedBy(
-			func(jobModel *job.Job) bool {
-				return jobModel.Name == TestJobName &&
-					jobModel.LockMode == job.HostLockMode
-			})).
-		Return(nil).Once()
-	mockJobStorage.On("GetByName", TestJobName).Return(nil, nil)
+	testCases := []struct {
+		name             string
+		jobStorage       func() *mocks.JobStorage
+		executionStorage func() *mocks.ExecutionStorage
+		request          string
+		body             string
+		status           int
+	}{
+		{
+			name: "normal create",
+			jobStorage: func() *mocks.JobStorage {
+				mockJobStorage := &mocks.JobStorage{}
+				mockJobStorage.On("Store",
+					mock.MatchedBy(
+						func(jobModel *job.Job) bool {
+							return jobModel.Name == TestJobName &&
+								jobModel.LockMode == job.HostLockMode
+						})).
+					Return(nil).Once()
+				mockJobStorage.On("GetByName", TestJobName).Return(nil, nil)
 
-	mockExecutuonStorage := &mocks.ExecutionStorage{}
+				return mockJobStorage
+			},
+			executionStorage: func() *mocks.ExecutionStorage {
+				return &mocks.ExecutionStorage{}
+			},
+			request: "/job",
+			body:    `{"name":"job","lockMode":"host","status":"active"}`,
+			status:  http.StatusCreated,
+		},
+		{
+			name: "minimal arguments create",
+			jobStorage: func() *mocks.JobStorage {
+				mockJobStorage := &mocks.JobStorage{}
+				mockJobStorage.On("Store",
+					mock.MatchedBy(
+						func(jobModel *job.Job) bool {
+							return jobModel.Name == TestJobName &&
+								jobModel.LockMode == job.HostLockMode &&
+								jobModel.Status == job.JobStatusActive
+						})).
+					Return(nil).Once()
+				mockJobStorage.On("GetByName", TestJobName).Return(nil, nil).Once()
 
-	testRouter := internal.NewTestRouter()
-	jobHandler := restapi.NewJobHandler(mockJobStorage, mockExecutuonStorage)
-	testRouter.POST("/job", jobHandler.CreateHandle)
+				return mockJobStorage
+			},
+			executionStorage: func() *mocks.ExecutionStorage {
+				return &mocks.ExecutionStorage{}
+			},
+			request: "/job",
+			body:    `{"name":"job"}`,
+			status:  http.StatusCreated,
+		},
+		{
+			name: "job exists",
+			jobStorage: func() *mocks.JobStorage {
+				mockJobStorage := &mocks.JobStorage{}
+				mockJobStorage.On("GetByName", "job").Return(job.NewJob("job"), nil)
 
-	testWriter := httptest.NewRecorder()
-	inRequest := &restapi.CreateJobIn{}
-	var data []byte
-	_ = json.Unmarshal(data, inRequest)
+				return mockJobStorage
+			},
+			executionStorage: func() *mocks.ExecutionStorage {
+				return &mocks.ExecutionStorage{}
+			},
+			request: "/job",
+			body:    `{"name":"job","lockMode":"host","status":"active"}`,
+			status:  http.StatusBadRequest,
+		},
+		{
+			name: "validation error",
+			jobStorage: func() *mocks.JobStorage {
+				return &mocks.JobStorage{}
+			},
+			executionStorage: func() *mocks.ExecutionStorage {
+				return &mocks.ExecutionStorage{}
+			},
+			request: "/job",
+			body:    `{"lockMode":"undefined","status":"undefined"}`,
+			status:  http.StatusBadRequest,
+		},
+	}
 
-	body := `{"name":"job","lockMode":"host"}`
-	req, _ := http.NewRequest("POST", "/job", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			mockJobStorage := testCase.jobStorage()
+			mockExecutionStorage := testCase.executionStorage()
 
-	testRouter.ServeHTTP(testWriter, req)
+			testRouter := internal.NewTestRouter()
+			jobHandler := restapi.NewJobHandler(mockJobStorage, mockExecutionStorage)
+			testRouter.POST(testCase.request, jobHandler.CreateHandle)
 
-	assert.Equal(t, 201, testWriter.Code, "%s", testWriter.Body.Bytes())
-	mockJobStorage.AssertExpectations(t)
-}
+			testWriter := httptest.NewRecorder()
+			inRequest := &restapi.CreateJobIn{}
+			var data []byte
+			_ = json.Unmarshal(data, inRequest)
 
-func TestJobCreateExists(t *testing.T) {
-	t.Parallel()
-	mockJobStorage := &mocks.JobStorage{}
-	mockJobStorage.On("GetByName", "job").Return(&job.Job{}, nil)
+			req, _ := http.NewRequest("POST", testCase.request, bytes.NewReader([]byte(testCase.body)))
+			req.Header.Set("Content-Type", "application/json")
 
-	mockExecutuonStorage := &mocks.ExecutionStorage{}
+			testRouter.ServeHTTP(testWriter, req)
 
-	testRouter := internal.NewTestRouter()
-	jobHandler := restapi.NewJobHandler(mockJobStorage, mockExecutuonStorage)
-	testRouter.POST("/job", jobHandler.CreateHandle)
-
-	testWriter := httptest.NewRecorder()
-
-	body := `{"name":"job","lockMode":"host"}`
-	req, _ := http.NewRequest("POST", "/job", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-
-	testRouter.ServeHTTP(testWriter, req)
-
-	assert.Equal(t, 400, testWriter.Code, "%s", testWriter.Body.Bytes())
-	mockJobStorage.AssertExpectations(t)
+			assert.Equal(t, testCase.status, testWriter.Code, "%s", testWriter.Body.Bytes())
+			mockJobStorage.AssertExpectations(t)
+			mockExecutionStorage.AssertExpectations(t)
+		})
+	}
 }
 
 func TestJobDelete(t *testing.T) {
@@ -132,7 +188,7 @@ func TestJobDelete(t *testing.T) {
 			},
 			responseStatus: http.StatusNotFound,
 			responseBody: func() *string {
-				body := `{"msg":"job not found"}`
+				body := `{"msg":"not found"}`
 
 				return &body
 			},

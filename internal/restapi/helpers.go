@@ -21,3 +21,8 @@ func writeLockResponse(ctx *gin.Context, msg string) {
 	glog.Infof("http locked response: %s", msg)
 	ctx.JSON(http.StatusLocked, gin.H{"msg": msg})
 }
+
+func writeBadRequestResponse(ctx *gin.Context, msg string) {
+	glog.Infof("bad request: %s", msg)
+	ctx.JSON(http.StatusBadRequest, gin.H{"msg": msg})
+}

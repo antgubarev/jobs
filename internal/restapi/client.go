@@ -15,8 +15,9 @@ import (
 )
 
 type CreateJobIn struct {
-	Name     string `json:"name"`
-	LockMode string `json:"lockMode"`
+	Name     string `json:"name" binding:"required"`
+	LockMode string `json:"lockMode" binding:"omitempty,oneof=free host cluster"`
+	Status   string `json:"status" binding:"omitempty,oneof=active paused"`
 }
 
 type JobStartIn struct {

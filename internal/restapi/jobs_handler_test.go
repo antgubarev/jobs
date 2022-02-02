@@ -21,10 +21,12 @@ func TestJobsList(t *testing.T) {
 			{
 				Name:     "job1",
 				LockMode: job.HostLockMode,
+				Status:   job.JobStatusActive,
 			},
 			{
 				Name:     "job2",
 				LockMode: job.ClusterLockMode,
+				Status:   job.JobStatusActive,
 			},
 		}, nil).Once()
 

@@ -29,14 +29,20 @@ func (eh *ExecutionHandler) SetController(controller job.ControllerI) {
 func (eh *ExecutionHandler) StartHandle(ctx *gin.Context) {
 	var jobStartIn JobStartIn
 	if err := ctx.ShouldBindJSON(&jobStartIn); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeBadRequestResponse(ctx, err.Error())
 
 		return
 	}
 
 	testJob, found := eh.findJobByName(ctx, jobStartIn.Job)
 	if !found {
-		ctx.JSON(http.StatusNotFound, gin.H{"err": "job not found"})
+		writeNotFoundResponse(ctx, "job not found")
+
+		return
+	}
+
+	if testJob.Status == job.JobStatusPaused {
+		writeBadRequestResponse(ctx, "job is paused")
 
 		return
 	}
@@ -53,7 +59,7 @@ func (eh *ExecutionHandler) StartHandle(ctx *gin.Context) {
 
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, nil)
+		writeInternalServerErrorResponse(ctx, err)
 
 		return
 	}
@@ -64,13 +70,13 @@ func (eh *ExecutionHandler) StartHandle(ctx *gin.Context) {
 func (eh *ExecutionHandler) FinishHandle(ctx *gin.Context) {
 	uid, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"err": "invalid id"})
+		writeBadRequestResponse(ctx, "invalid id")
 
 		return
 	}
 
 	if err := eh.controller.Finish(uid); err != nil {
-		ctx.JSON(http.StatusInternalServerError, nil)
+		writeInternalServerErrorResponse(ctx, err)
 
 		return
 	}
@@ -81,12 +87,12 @@ func (eh *ExecutionHandler) FinishHandle(ctx *gin.Context) {
 func (eh *ExecutionHandler) findJobByName(ctx *gin.Context, name string) (*job.Job, bool) {
 	job, err := eh.jobStorage.GetByName(name)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, nil)
+		writeInternalServerErrorResponse(ctx, err)
 
 		return nil, false
 	}
 	if job == nil {
-		ctx.JSON(http.StatusNotFound, nil)
+		writeNotFoundResponse(ctx, "job not found")
 
 		return nil, false
 	}

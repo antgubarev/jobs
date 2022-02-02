@@ -11,8 +11,6 @@ import (
 	"github.com/golang/glog"
 )
 
-var errUndefinedLockMode = errors.New("undefined lock mode")
-
 type JobHandler struct {
 	jobStorage       job.Storage
 	executuonStorage job.ExecutionStorage
@@ -44,13 +42,13 @@ func (jh *JobHandler) CreateHandle(ctx *gin.Context) {
 	}
 
 	testJob := job.NewJob(createJobIn.Name)
-	parsedLockMode, err := parseLockMode(createJobIn.LockMode)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"err": err.Error()})
-
-		return
+	if createJobIn.Status != "" {
+		testJob.Status = job.Status(createJobIn.Status)
 	}
-	testJob.LockMode = parsedLockMode
+	if createJobIn.LockMode != "" {
+		testJob.LockMode = job.LockMode(createJobIn.LockMode)
+	}
+
 	if err := jh.jobStorage.Store(testJob); err != nil {
 		glog.Errorf("CreateHandle: %v", err)
 		ctx.JSON(http.StatusInternalServerError, nil)
@@ -65,7 +63,7 @@ func (jh *JobHandler) DeleteHandle(ctx *gin.Context) {
 	jobName := ctx.Param("name")
 	_, ok := jh.findJobByName(ctx, jobName)
 	if !ok {
-		writeNotFoundResponse(ctx, "job not found")
+		writeNotFoundResponse(ctx, "not found")
 
 		return
 	}
@@ -107,17 +105,4 @@ func (jh *JobHandler) findJobByName(ctx *gin.Context, name string) (*job.Job, bo
 	}
 
 	return job, true
-}
-
-func parseLockMode(lockMode string) (job.LockMode, error) {
-	switch lockMode {
-	case string(job.FreeLockMode):
-		return job.FreeLockMode, nil
-	case string(job.ClusterLockMode):
-		return job.ClusterLockMode, nil
-	case string(job.HostLockMode):
-		return job.HostLockMode, nil
-	default:
-		return "", fmt.Errorf("parseLockMode: %w: %s", errUndefinedLockMode, lockMode)
-	}
 }
